@@ -1,0 +1,23 @@
+
+{
+  "name": "Ratan Decor Admin",
+  "short_name": "Ratan Admin",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#b91c1c",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "splash_screens": [
+    {
+      "src": "/splash-screen.png",
+      "sizes": "640x1136",
+      "type": "image/png"
+    }
+  ]
+}           
