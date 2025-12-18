@@ -54,11 +54,12 @@ const ProductsList = () => {
   const [filters, setFilters] = useState({
     categoryId: '',
     subcategoryId: '',
-    search: '',
     isActive: '',
     designNumber: '',
     minDesignNumber: '',
     maxDesignNumber: '',
+    minPrice: '',
+    maxPrice: '',
   });
   const [counts, setCounts] = useState({
     totalCount: 0,
@@ -102,6 +103,8 @@ const ProductsList = () => {
       designNumber: filters.designNumber.trim(),
       minDesignNumber: filters.minDesignNumber.trim(),
       maxDesignNumber: filters.maxDesignNumber.trim(),
+      minPrice: filters.minPrice.trim(),
+      maxPrice: filters.maxPrice.trim(),
     };
     const cleanParams = Object.fromEntries(
       Object.entries(params).filter(([_, v]) => v !== '' && v !== undefined)
@@ -127,6 +130,8 @@ const ProductsList = () => {
         designNumber: filters.designNumber.trim() || undefined,
         minDesignNumber: filters.minDesignNumber.trim() || undefined,
         maxDesignNumber: filters.maxDesignNumber.trim() || undefined,
+        minPrice: filters.minPrice.trim() || undefined,
+        maxPrice: filters.maxPrice.trim() || undefined,
       };
 
       Object.keys(currentParams).forEach(key => {
@@ -450,11 +455,12 @@ const ProductsList = () => {
     setFilters({
       categoryId: '',
       subcategoryId: '',
-      search: '',
       isActive: '',
       designNumber: '',
       minDesignNumber: '',
       maxDesignNumber: '',
+      minPrice: '',
+      maxPrice: '',
     });
     setSearchTerm('');
   };
@@ -479,7 +485,7 @@ const ProductsList = () => {
                 className="object-cover w-full h-full rounded-lg"
                 onError={(e) => {
                   e.target.onerror = null;
-                  e.target.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22150%22%20height%3D%22150%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Crect%20width%3D%22150%22%height%3D%22150%22%20fill%3D%22%23eee%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20font-size%3D%2214%22%20text-anchor%3D%22middle%22%20alignment-baseline%3D%22middle%22%20font-family%3D%22Arial%2C%20sans-serif%22%20fill%3D%22%23999%22%3EImage%20Not%20Found%3C%2Ftext%3E%3C%2Fsvg%3E';
+                  e.target.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22150%22%20height%3D%22150%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Crect%20width%3D%22150%22%20height%3D%22150%22%20fill%3D%22%23eee%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20font-size%3D%2214%22%20text-anchor%3D%22middle%22%20alignment-baseline%3D%22middle%22%20font-family%3D%22Arial%2C%20sans-serif%22%20fill%3D%22%23999%22%3EImage%20Not%20Found%3C%2Ftext%3E%3C%2Fsvg%3E';
                 }}
               />
             ) : (
@@ -694,7 +700,7 @@ const ProductsList = () => {
         </div>
 
         {showFilters && (
-          <div className="grid grid-cols-1 gap-4 pt-4 mt-4 border-t border-gray-200 sm:grid-cols-2 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 pt-4 mt-4 border-t border-gray-200 sm:grid-cols-2 md:grid-cols-6">
             <div className="relative">
               <Tag
                 className="absolute left-3 top-1/2 text-gray-400 transform -translate-y-1/2"
@@ -732,6 +738,34 @@ const ProductsList = () => {
                 value={filters.maxDesignNumber}
                 onChange={(e) => handleFilterChange('maxDesignNumber', e.target.value)}
                 className="py-2 pr-4 pl-10 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
+              />
+            </div>
+            <div className="relative">
+              <Tag
+                className="absolute left-3 top-1/2 text-gray-400 transform -translate-y-1/2"
+                size={18}
+              />
+              <input
+                type="number"
+                placeholder="Min Price"
+                value={filters.minPrice}
+                onChange={(e) => handleFilterChange('minPrice', e.target.value)}
+                className="py-2 pr-4 pl-10 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
+                min="0"
+              />
+            </div>
+            <div className="relative">
+              <Tag
+                className="absolute left-3 top-1/2 text-gray-400 transform -translate-y-1/2"
+                size={18}
+              />
+              <input
+                type="number"
+                placeholder="Max Price"
+                value={filters.maxPrice}
+                onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
+                className="py-2 pr-4 pl-10 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
+                min="0"
               />
             </div>
             <select
@@ -808,6 +842,28 @@ const ProductsList = () => {
               <span className="text-blue-800 text-sm">Max Design: {filters.maxDesignNumber}</span>
               <button
                 onClick={() => handleClearFilter('maxDesignNumber')}
+                className="ml-2 text-blue-600 hover:text-blue-800"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+          {filters.minPrice && (
+            <div className="flex items-center p-2 bg-blue-50 rounded-lg border border-blue-200">
+              <span className="text-blue-800 text-sm">Min Price: ₹{filters.minPrice}</span>
+              <button
+                onClick={() => handleClearFilter('minPrice')}
+                className="ml-2 text-blue-600 hover:text-blue-800"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+          {filters.maxPrice && (
+            <div className="flex items-center p-2 bg-blue-50 rounded-lg border border-blue-200">
+              <span className="text-blue-800 text-sm">Max Price: ₹{filters.maxPrice}</span>
+              <button
+                onClick={() => handleClearFilter('maxPrice')}
                 className="ml-2 text-blue-600 hover:text-blue-800"
               >
                 <X size={16} />

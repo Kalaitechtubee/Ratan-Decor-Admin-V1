@@ -604,39 +604,70 @@ export const deleteUser = async (id) => {
 };
 
 // Product API Functions
+// Updated getProducts API Function with Multi-Select Support
+
 export const getProducts = async ({
   userType,
-  categoryId,
-  subcategoryId,
+  categoryId, // Can be comma-separated: "1,2,3"
+  subcategoryId, // Can be comma-separated: "4,5,6"
+  brandName, // Can be comma-separated: "Brand1,Brand2"
+  colors, // Can be comma-separated: "Red,Blue,Green"
+  size, // Can be comma-separated: "12x12,24x24"
+  thickness, // Can be comma-separated: "8mm,10mm"
+  unitType, // Can be comma-separated: "Box,Sq.Ft"
   minPrice,
   maxPrice,
+  minGst,
+  maxGst,
   search,
   page = 1,
   limit = 20,
   isActive,
   designNumber,
   minDesignNumber,
-  maxDesignNumber
+  maxDesignNumber,
+  sortBy = 'createdAt',
+  sortOrder = 'DESC'
 }) => {
   const params = new URLSearchParams();
+  
   params.append('page', page);
   params.append('limit', limit);
+  
   if (userType) params.append('userType', userType);
+  
+  // Multi-select parameters
   if (categoryId) params.append('categoryId', categoryId);
   if (subcategoryId) params.append('subcategoryId', subcategoryId);
+  if (brandName) params.append('brandName', brandName);
+  if (colors) params.append('colors', colors);
+  if (size) params.append('size', size);
+  if (thickness) params.append('thickness', thickness);
+  if (unitType) params.append('unitType', unitType);
+  
+  // Range filters
   if (minPrice) params.append('minPrice', minPrice);
   if (maxPrice) params.append('maxPrice', maxPrice);
+  if (minGst) params.append('minGst', minGst);
+  if (maxGst) params.append('maxGst', maxGst);
+  
+  // Search and design filters
   if (search) params.append('search', search);
-  if (isActive !== undefined && isActive !== '') params.append('isActive', isActive);
   if (designNumber) params.append('designNumber', designNumber);
   if (minDesignNumber) params.append('minDesignNumber', minDesignNumber);
   if (maxDesignNumber) params.append('maxDesignNumber', maxDesignNumber);
+  
+  // Status and sorting
+  if (isActive !== undefined && isActive !== '') params.append('isActive', isActive);
+  if (sortBy) params.append('sortBy', sortBy);
+  if (sortOrder) params.append('sortOrder', sortOrder);
 
   try {
     const data = await apiFetch(`${PRODUCTS_ENDPOINT}?${params.toString()}`, {
       method: 'GET',
     });
 
+    // Process image URLs
     const products = (data.products || []).map(product => {
       if (product.imageUrl && product.imageUrl.startsWith('/')) {
         product.imageUrl = `${API_BASE_URL}${product.imageUrl}`;
@@ -664,11 +695,14 @@ export const getProducts = async ({
         activeCount: data.activeCount || 0,
         inactiveCount: data.inactiveCount || 0,
       },
-      filters: {
-        isActiveFilter: data.isActiveFilter,
-        designNumberFilter: data.designNumberFilter,
-        minDesignNumberFilter: data.minDesignNumberFilter,
-        maxDesignNumberFilter: data.maxDesignNumberFilter,
+      appliedFilters: data.appliedFilters || {},
+      availableFilters: data.availableFilters || {
+        brands: [],
+        sizes: [],
+        thicknesses: [],
+        unitTypes: [],
+        colors: [],
+        gstValues: []
       }
     };
   } catch (error) {
