@@ -79,7 +79,7 @@ const apiFetch = async (url, options = {}) => {
     }
 
     const data = await handleResponse(response);
-    
+
     return data;
   } catch (error) {
     console.error('apiFetch: API request failed:', error);
@@ -301,7 +301,7 @@ export const createStaffUser = async (staffData) => {
 
 export const login = async ({ email, password }) => {
   validateInput({ email, password }, ['email', 'password'], { validateEmail: true });
-  
+
   try {
     const response = await fetch(`${AUTH_ENDPOINT}/login`, {
       method: 'POST',
@@ -630,12 +630,12 @@ export const getProducts = async ({
   sortOrder = 'DESC'
 }) => {
   const params = new URLSearchParams();
-  
+
   params.append('page', page);
   params.append('limit', limit);
-  
+
   if (userType) params.append('userType', userType);
-  
+
   // Multi-select parameters
   if (categoryId) params.append('categoryId', categoryId);
   if (subcategoryId) params.append('subcategoryId', subcategoryId);
@@ -644,19 +644,19 @@ export const getProducts = async ({
   if (size) params.append('size', size);
   if (thickness) params.append('thickness', thickness);
   if (unitType) params.append('unitType', unitType);
-  
+
   // Range filters
   if (minPrice) params.append('minPrice', minPrice);
   if (maxPrice) params.append('maxPrice', maxPrice);
   if (minGst) params.append('minGst', minGst);
   if (maxGst) params.append('maxGst', maxGst);
-  
+
   // Search and design filters
   if (search) params.append('search', search);
   if (designNumber) params.append('designNumber', designNumber);
   if (minDesignNumber) params.append('minDesignNumber', minDesignNumber);
   if (maxDesignNumber) params.append('maxDesignNumber', maxDesignNumber);
-  
+
   // Status and sorting
   if (isActive !== undefined && isActive !== '') params.append('isActive', isActive);
   if (sortBy) params.append('sortBy', sortBy);
@@ -766,7 +766,7 @@ export const updateProduct = async (id, formData) => {
     // Parse response
     let data;
     const contentType = response.headers.get('content-type');
-    
+
     if (contentType && contentType.includes('application/json')) {
       data = await response.json();
     } else {
@@ -777,9 +777,9 @@ export const updateProduct = async (id, formData) => {
 
     // Check if response is not ok
     if (!response.ok) {
-      const errorMessage = data.message || data.error || 
-                          data.errors?.[0]?.message || 
-                          `API request failed with status ${response.status}`;
+      const errorMessage = data.message || data.error ||
+        data.errors?.[0]?.message ||
+        `API request failed with status ${response.status}`;
       console.error('API Error Response:', {
         status: response.status,
         statusText: response.statusText,
@@ -807,7 +807,7 @@ export const createProduct = async (formData) => {
   try {
     // Validate required fields
     const requiredFields = ['name', 'generalPrice', 'architectPrice', 'dealerPrice', 'visibleTo'];
-    
+
     // Check if we can extract data from formData for validation
     const formDataObj = {};
     for (let [key, value] of formData.entries()) {
@@ -821,7 +821,7 @@ export const createProduct = async (formData) => {
         formDataObj[key] = value;
       }
     }
-    
+
     validateInput(formDataObj, requiredFields);
 
     console.log('Creating product with formData keys:', Array.from(formData.keys()));
@@ -843,7 +843,7 @@ export const createProduct = async (formData) => {
 
     let data;
     const contentType = response.headers.get('content-type');
-    
+
     if (contentType && contentType.includes('application/json')) {
       data = await response.json();
     } else {
@@ -853,9 +853,9 @@ export const createProduct = async (formData) => {
     }
 
     if (!response.ok) {
-      const errorMessage = data.message || data.error || 
-                          data.errors?.[0]?.message || 
-                          `API request failed with status ${response.status}`;
+      const errorMessage = data.message || data.error ||
+        data.errors?.[0]?.message ||
+        `API request failed with status ${response.status}`;
       console.error('API Error Response:', {
         status: response.status,
         statusText: response.statusText,
