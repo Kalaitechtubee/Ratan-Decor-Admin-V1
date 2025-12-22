@@ -8,13 +8,13 @@ function Table({
   sortBy,
   sortOrder,
   onSort,
-  currentPage = 1,
-  totalPages = 1,
-  onPageChange,
+  pagination,
   loading = false
 }) {
   const [clickedRowId, setClickedRowId] = useState(null);
   const [clickTimeout, setClickTimeout] = useState(null);
+
+  const { currentPage = 1, totalPages = 1, totalItems = 0, onPageChange, itemsPerPage = 10 } = pagination || {};
 
   const handleSort = (key) => {
     if (onSort) {
@@ -23,21 +23,18 @@ function Table({
   };
 
   const handleRowClick = (item, e) => {
-    // Prevent row click if clicking on action buttons
     if (e.target.closest('button') || e.target.closest('a')) {
       return;
     }
 
-    // Prevent double clicks
     if (clickedRowId === item.id) return;
-    
+
     setClickedRowId(item.id);
-    
+
     if (onRowClick) {
       onRowClick(item);
     }
 
-    // Reset clicked state after 500ms
     if (clickTimeout) clearTimeout(clickTimeout);
     const timeout = setTimeout(() => {
       setClickedRowId(null);
@@ -53,10 +50,45 @@ function Table({
     };
   }, [clickTimeout]);
 
+  // Generate page numbers for pagination
+  const generatePageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push('...');
+        pages.push(currentPage - 1);
+        pages.push(currentPage);
+        pages.push(currentPage + 1);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  };
+
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow overflow-hidden font-roboto">
-        {/* Remove animation-fade-in-left to prevent animation issues */}
         <div className="animate-pulse">
           <div className="h-12 bg-gray-200"></div>
           {[...Array(5)].map((_, i) => (
@@ -69,7 +101,6 @@ function Table({
 
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden font-roboto">
-      {/* Remove animation-fade-in-left */}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -134,49 +165,65 @@ function Table({
         </table>
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <button
-              onClick={() => onPageChange && onPageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-primary bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => onPageChange && onPageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-primary bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Showing page <span className="font-medium text-primary">{currentPage}</span> of{' '}
-                <span className="font-medium text-primary">{totalPages}</span>
-              </p>
+      {/* New Pagination Design */}
+      {totalPages > 0 && (
+        <div className="bg-white px-6 py-4 border-t border-gray-200">
+          <div className="flex items-center justify-between">
+            {/* Left side - Showing text */}
+            <div className="text-sm text-gray-700">
+              Showing {totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to{' '}
+              {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} results
             </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                <button
-                  onClick={() => onPageChange && onPageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-primary hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <button
-                  onClick={() => onPageChange && onPageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-primary hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </nav>
+
+            {/* Right side - Pagination controls */}
+            <div className="flex items-center space-x-2">
+              {/* Previous button */}
+              <button
+                onClick={() => onPageChange && onPageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="p-2 rounded border border-gray-300 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                aria-label="Previous page"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              {/* Page numbers */}
+              {generatePageNumbers().map((page, index) => {
+                if (page === '...') {
+                  return (
+                    <span
+                      key={`ellipsis-${index}`}
+                      className="px-3 py-2 text-gray-500"
+                    >
+                      ...
+                    </span>
+                  );
+                }
+
+                return (
+                  <button
+                    key={page}
+                    onClick={() => onPageChange && onPageChange(page)}
+                    className={`min-w-[40px] px-3 py-2 rounded border text-sm font-medium transition-colors ${
+                      currentPage === page
+                        ? 'bg-red-500 text-white border-red-500'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+
+              {/* Next button */}
+              <button
+                onClick={() => onPageChange && onPageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded border border-gray-300 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                aria-label="Next page"
+              >
+                <ChevronRight size={16} />
+              </button>
             </div>
           </div>
         </div>

@@ -83,6 +83,7 @@ const adminOrderApi = {
       ...(params.status && { status: params.status }),
       ...(params.paymentStatus && { paymentStatus: params.paymentStatus }),
       ...(params.customer && { customer: params.customer }),
+      ...(params.orderId && { orderId: params.orderId }),
       ...(params.startDate && { startDate: params.startDate }),
       ...(params.endDate && { endDate: params.endDate }),
     };

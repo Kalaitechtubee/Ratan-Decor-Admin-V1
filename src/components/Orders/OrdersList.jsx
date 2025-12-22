@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Download, Filter, Search, Eye, Edit } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Download, Filter, Search, Eye, Edit, Calendar, X, RefreshCw, Package } from 'lucide-react';
 import Table from '../Common/Table';
 import StatusBadge from '../Common/StatusBadge';
 import Modal from '../Common/Modal';
@@ -9,19 +10,25 @@ import adminOrderApi from './adminOrderApi';
 import { debounce } from 'lodash';
 import { getUser } from '../../utils/tokenHandler';
 
-
 const OrdersList = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [modalType, setModalType] = useState(null); // 'details' or 'edit'
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true); // Show filters by default
+
+  // Initialize filters from URL params
   const [filters, setFilters] = useState({
-    status: '',
-    paymentStatus: '',
-    customer: '',
-    page: 1,
-    limit: 10,
+    status: searchParams.get('status') || '',
+    paymentStatus: searchParams.get('paymentStatus') || '',
+    customer: searchParams.get('customer') || '',
+    orderId: searchParams.get('orderId') || '',
+    startDate: searchParams.get('startDate') || '',
+    endDate: searchParams.get('endDate') || '',
+    page: parseInt(searchParams.get('page')) || 1,
+    limit: parseInt(searchParams.get('limit')) || 10,
   });
+
   const [loading, setLoading] = useState({
     fetch: false,
     export: false,
@@ -31,6 +38,13 @@ const OrdersList = () => {
     total: 0,
     totalPages: 0,
     currentPage: 1,
+  });
+  const [stats, setStats] = useState({
+    total: 0,
+    pending: 0,
+    processing: 0,
+    completed: 0,
+    cancelled: 0,
   });
   const [userRole, setUserRole] = useState(null);
 
@@ -44,6 +58,22 @@ const OrdersList = () => {
     }
   }, []);
 
+  // Sync filters to URL
+  useEffect(() => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value && value !== '' && value !== 1 && value !== 10) {
+        params.set(key, value.toString());
+      }
+    });
+    // Only update if different to prevent loops
+    const newSearch = params.toString();
+    const currentSearch = searchParams.toString();
+    if (newSearch !== currentSearch) {
+      setSearchParams(params, { replace: true });
+    }
+  }, [filters, setSearchParams, searchParams]);
+
   // Fetch orders from API
   const fetchOrders = useCallback(async () => {
     setLoading(prev => ({ ...prev, fetch: true }));
@@ -53,14 +83,29 @@ const OrdersList = () => {
         status: filters.status,
         paymentStatus: filters.paymentStatus,
         customer: filters.customer,
+        orderId: filters.orderId,
+        startDate: filters.startDate,
+        endDate: filters.endDate,
         page: filters.page,
         limit: filters.limit,
       });
       setOrders(response.orders || []);
       setPagination({
-        total: response.pagination.total,
-        totalPages: response.pagination.totalPages,
-        currentPage: response.pagination.page,
+        total: response.pagination?.total || 0,
+        totalPages: response.pagination?.totalPages || 1,
+        currentPage: response.pagination?.page || 1,
+      });
+
+      // Use stats from backend (global stats, not just current page)
+      const summary = response.orderSummary || {};
+      const statusBreakdown = summary.statusBreakdown || {};
+
+      setStats({
+        total: summary.totalOrders || 0,
+        pending: statusBreakdown['Pending']?.count || 0,
+        processing: statusBreakdown['Processing']?.count || 0,
+        completed: statusBreakdown['Completed']?.count || 0,
+        cancelled: statusBreakdown['Cancelled']?.count || 0,
       });
     } catch (err) {
       console.error('Fetch Orders Error:', err);
@@ -68,37 +113,28 @@ const OrdersList = () => {
     } finally {
       setLoading(prev => ({ ...prev, fetch: false }));
     }
-  }, [filters.status, filters.paymentStatus, filters.customer, filters.page, filters.limit]);
+  }, [filters]);
 
-  // Debounced customer search
-  const debouncedCustomerSearch = useCallback(
-    debounce((value) => {
-      setFilters(prev => ({ ...prev, customer: value, page: 1 }));
+  // Debounced search
+  const debouncedSearch = useCallback(
+    debounce((field, value) => {
+      setFilters(prev => ({ ...prev, [field]: value, page: 1 }));
     }, 500),
     []
   );
 
   // Fetch orders when filters change
   const hasFetchedRef = useRef(false);
+  const prevFiltersRef = useRef(JSON.stringify(filters));
 
   useEffect(() => {
-    if (!hasFetchedRef.current) {
+    const currentFiltersString = JSON.stringify(filters);
+    if (!hasFetchedRef.current || prevFiltersRef.current !== currentFiltersString) {
       hasFetchedRef.current = true;
+      prevFiltersRef.current = currentFiltersString;
       fetchOrders();
     }
-  }, [fetchOrders]);
-
-  // Reset fetch flag when filters change (for subsequent fetches)
-  useEffect(() => {
-    if (filters.status || filters.paymentStatus || filters.customer || filters.page > 1) {
-      hasFetchedRef.current = false;
-    }
-  }, [filters.status, filters.paymentStatus, filters.customer, filters.page]);
-
-  // Handle customer search input
-  const handleCustomerSearch = (value) => {
-    debouncedCustomerSearch(value);
-  };
+  }, [filters, fetchOrders]);
 
   // Handle page change
   const handlePageChange = (newPage) => {
@@ -152,6 +188,20 @@ const OrdersList = () => {
   const handleModalClose = () => {
     setSelectedOrder(null);
     setModalType(null);
+  };
+
+  // Handle Edit button click
+  const handleEditClick = (e, order) => {
+    e.stopPropagation();
+    setSelectedOrder(order);
+    setModalType('edit');
+  };
+
+  // Handle View button click
+  const handleViewClick = (e, order) => {
+    e.stopPropagation();
+    setSelectedOrder(order);
+    setModalType('details');
   };
 
   const columns = [
@@ -214,31 +264,21 @@ const OrdersList = () => {
       key: 'actions',
       header: 'Actions',
       render: (value, item) => (
-        <div className="flex space-x-2">
+        <div className="flex items-center space-x-2">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedOrder(item);
-              setModalType('details');
-            }}
-            className="p-1 text-blue-600 hover:text-blue-800 transition-colors"
+            onClick={(e) => handleViewClick(e, item)}
+            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
             title="View Details"
           >
-            <Eye size={16} />
+            <Eye size={18} />
           </button>
-          {['Admin', 'Manager'].includes(userRole) && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedOrder(item);
-                setModalType('edit');
-              }}
-              className="p-1 text-green-600 hover:text-green-800 transition-colors"
-              title="Edit Order"
-            >
-              <Edit size={16} />
-            </button>
-          )}
+          <button
+            onClick={(e) => handleEditClick(e, item)}
+            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+            title="Edit Order"
+          >
+            <Edit size={18} />
+          </button>
         </div>
       ),
     },
@@ -279,65 +319,273 @@ const OrdersList = () => {
         </div>
       )}
 
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div
+          className={`p-4 bg-white rounded-lg shadow-sm border-2 cursor-pointer transition-all hover:shadow-md ${filters.status === '' ? 'border-primary ring-2 ring-primary/20' : 'border-transparent'}`}
+          onClick={() => setFilters({ ...filters, status: '', page: 1 })}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Package className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{pagination.total}</p>
+              <p className="text-xs text-gray-500">Total Orders</p>
+            </div>
+          </div>
+        </div>
+        <div
+          className={`p-4 bg-white rounded-lg shadow-sm border-2 cursor-pointer transition-all hover:shadow-md ${filters.status === 'Pending' ? 'border-yellow-500 ring-2 ring-yellow-500/20' : 'border-transparent'}`}
+          onClick={() => setFilters({ ...filters, status: 'Pending', page: 1 })}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-yellow-100 rounded-lg">
+              <RefreshCw className="w-5 h-5 text-yellow-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+              <p className="text-xs text-gray-500">Pending</p>
+            </div>
+          </div>
+        </div>
+        <div
+          className={`p-4 bg-white rounded-lg shadow-sm border-2 cursor-pointer transition-all hover:shadow-md ${filters.status === 'Processing' ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-transparent'}`}
+          onClick={() => setFilters({ ...filters, status: 'Processing', page: 1 })}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <RefreshCw className="w-5 h-5 text-blue-600 animate-spin" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-blue-600">{stats.processing}</p>
+              <p className="text-xs text-gray-500">Processing</p>
+            </div>
+          </div>
+        </div>
+        <div
+          className={`p-4 bg-white rounded-lg shadow-sm border-2 cursor-pointer transition-all hover:shadow-md ${filters.status === 'Completed' ? 'border-green-500 ring-2 ring-green-500/20' : 'border-transparent'}`}
+          onClick={() => setFilters({ ...filters, status: 'Completed', page: 1 })}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <Package className="w-5 h-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
+              <p className="text-xs text-gray-500">Completed</p>
+            </div>
+          </div>
+        </div>
+        <div
+          className={`p-4 bg-white rounded-lg shadow-sm border-2 cursor-pointer transition-all hover:shadow-md ${filters.status === 'Cancelled' ? 'border-red-500 ring-2 ring-red-500/20' : 'border-transparent'}`}
+          onClick={() => setFilters({ ...filters, status: 'Cancelled', page: 1 })}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-red-100 rounded-lg">
+              <X className="w-5 h-5 text-red-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-red-600">{stats.cancelled}</p>
+              <p className="text-xs text-gray-500">Cancelled</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Filters */}
       <div className="p-4 sm:p-6 bg-white rounded-lg shadow-sm">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-primary">Filters</h3>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center space-x-2 text-gray-600 transition-colors hover:text-primary"
-          >
-            <Filter size={16} />
-            <span>{showFilters ? 'Hide' : 'Show'} Filters</span>
-          </button>
+          <h3 className="text-lg font-semibold text-primary flex items-center gap-2">
+            <Filter size={18} />
+            Filters
+          </h3>
+          <div className="flex items-center gap-3">
+            {(filters.status || filters.paymentStatus || filters.customer || filters.orderId || filters.startDate || filters.endDate) && (
+              <button
+                onClick={() => setFilters({
+                  status: '',
+                  paymentStatus: '',
+                  customer: '',
+                  orderId: '',
+                  startDate: '',
+                  endDate: '',
+                  page: 1,
+                  limit: filters.limit,
+                })}
+                className="flex items-center space-x-1 px-3 py-1.5 text-sm text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+              >
+                <X size={14} />
+                <span>Clear All</span>
+              </button>
+            )}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center space-x-2 text-gray-600 transition-colors hover:text-primary"
+            >
+              <Filter size={16} />
+              <span>{showFilters ? 'Hide' : 'Show'} Filters</span>
+            </button>
+          </div>
         </div>
 
         {showFilters && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block mb-2 text-sm font-medium text-gray-700">Status</label>
-              <select
-                value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value, page: 1 })}
-                className="px-3 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
-              >
-                <option value="">All Status</option>
-                <option value="Pending">Pending</option>
-                <option value="Processing">Processing</option>
-                <option value="Shipped">Shipped</option>
-                <option value="Completed">Completed</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
-            </div>
-            <div>
-              <label className="block mb-2 text-sm font-medium text-gray-700">Payment Status</label>
-              <select
-                value={filters.paymentStatus}
-                onChange={(e) => setFilters({ ...filters, paymentStatus: e.target.value, page: 1 })}
-                className="px-3 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
-              >
-                <option value="">All Payment Status</option>
-                <option value="Awaiting">Awaiting</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-              </select>
-            </div>
-            <div>
-              <label className="block mb-2 text-sm font-medium text-gray-700">Customer</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={filters.customer}
-                  onChange={(e) => {
-                    setFilters({ ...filters, customer: e.target.value });
-                    handleCustomerSearch(e.target.value);
-                  }}
-                  placeholder="Search customer..."
-                  className="px-3 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent pl-10"
-                />
-                <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <div className="space-y-4">
+            {/* Row 1: Status, Payment, Items per page */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div>
+                <label className="block mb-2 text-sm font-medium text-gray-700">Order Status</label>
+                <select
+                  value={filters.status}
+                  onChange={(e) => setFilters({ ...filters, status: e.target.value, page: 1 })}
+                  className="px-3 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
+                >
+                  <option value="">All Status</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Processing">Processing</option>
+                  <option value="Shipped">Shipped</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-gray-700">Payment Status</label>
+                <select
+                  value={filters.paymentStatus}
+                  onChange={(e) => setFilters({ ...filters, paymentStatus: e.target.value, page: 1 })}
+                  className="px-3 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
+                >
+                  <option value="">All Payment Status</option>
+                  <option value="Awaiting">Awaiting</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-gray-700">Items per page</label>
+                <select
+                  value={filters.limit}
+                  onChange={(e) => setFilters({ ...filters, limit: parseInt(e.target.value), page: 1 })}
+                  className="px-3 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-gray-700">Order ID</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={filters.orderId}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setFilters({ ...filters, orderId: value });
+                      debouncedSearch('orderId', value);
+                    }}
+                    placeholder="Search order ID..."
+                    className="px-3 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent pl-10"
+                  />
+                  <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                </div>
               </div>
             </div>
+
+            {/* Row 2: Customer, Date Range */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block mb-2 text-sm font-medium text-gray-700">Customer</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={filters.customer}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setFilters({ ...filters, customer: value });
+                      debouncedSearch('customer', value);
+                    }}
+                    placeholder="Search customer name..."
+                    className="px-3 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent pl-10"
+                  />
+                  <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                </div>
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-gray-700">Start Date</label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={filters.startDate}
+                    onChange={(e) => setFilters({ ...filters, startDate: e.target.value, page: 1 })}
+                    className="px-3 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent pl-10"
+                  />
+                  <Calendar size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                </div>
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-gray-700">End Date</label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={filters.endDate}
+                    onChange={(e) => setFilters({ ...filters, endDate: e.target.value, page: 1 })}
+                    className="px-3 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent pl-10"
+                  />
+                  <Calendar size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                </div>
+              </div>
+            </div>
+
+            {/* Active Filters Chips */}
+            {(filters.status || filters.paymentStatus || filters.customer || filters.orderId || filters.startDate || filters.endDate) && (
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
+                <span className="text-sm text-gray-500">Active filters:</span>
+                {filters.status && (
+                  <div className="flex items-center px-3 py-1 bg-yellow-50 rounded-full border border-yellow-200">
+                    <span className="text-yellow-700 text-xs font-medium">Status: {filters.status}</span>
+                    <button onClick={() => setFilters({ ...filters, status: '', page: 1 })} className="ml-2 text-yellow-400 hover:text-yellow-600">
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+                {filters.paymentStatus && (
+                  <div className="flex items-center px-3 py-1 bg-blue-50 rounded-full border border-blue-200">
+                    <span className="text-blue-700 text-xs font-medium">Payment: {filters.paymentStatus}</span>
+                    <button onClick={() => setFilters({ ...filters, paymentStatus: '', page: 1 })} className="ml-2 text-blue-400 hover:text-blue-600">
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+                {filters.customer && (
+                  <div className="flex items-center px-3 py-1 bg-purple-50 rounded-full border border-purple-200">
+                    <span className="text-purple-700 text-xs font-medium">Customer: {filters.customer}</span>
+                    <button onClick={() => setFilters({ ...filters, customer: '', page: 1 })} className="ml-2 text-purple-400 hover:text-purple-600">
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+                {filters.orderId && (
+                  <div className="flex items-center px-3 py-1 bg-green-50 rounded-full border border-green-200">
+                    <span className="text-green-700 text-xs font-medium">Order: {filters.orderId}</span>
+                    <button onClick={() => setFilters({ ...filters, orderId: '', page: 1 })} className="ml-2 text-green-400 hover:text-green-600">
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+                {(filters.startDate || filters.endDate) && (
+                  <div className="flex items-center px-3 py-1 bg-orange-50 rounded-full border border-orange-200">
+                    <span className="text-orange-700 text-xs font-medium">
+                      Date: {filters.startDate || '...'} to {filters.endDate || '...'}
+                    </span>
+                    <button onClick={() => setFilters({ ...filters, startDate: '', endDate: '', page: 1 })} className="ml-2 text-orange-400 hover:text-orange-600">
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -355,6 +603,7 @@ const OrdersList = () => {
           currentPage: pagination.currentPage,
           totalPages: pagination.totalPages,
           totalItems: pagination.total,
+          itemsPerPage: filters.limit,
           onPageChange: handlePageChange,
         }}
       />
