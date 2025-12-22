@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, Upload, X, Image as ImageIcon, Link } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { apiFetchWithAuth as apiFetch } from '../../services/Api';
 
@@ -16,6 +16,7 @@ const Sliders = ({ currentUser, onToast }) => {
     subtitle: '',
     desc: '',
     cta: '',
+    ctaUrl: '',
   });
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
@@ -111,6 +112,7 @@ const Sliders = ({ currentUser, onToast }) => {
         subtitle: slider.subtitle || '',
         desc: slider.desc || '',
         cta: slider.cta || '',
+        ctaUrl: slider.ctaUrl || '',
       });
       setExistingImages(slider.images || []);
       setSelectedFiles([]);
@@ -121,6 +123,7 @@ const Sliders = ({ currentUser, onToast }) => {
         subtitle: '',
         desc: '',
         cta: '',
+        ctaUrl: '',
       });
       setExistingImages([]);
       setSelectedFiles([]);
@@ -136,6 +139,7 @@ const Sliders = ({ currentUser, onToast }) => {
       subtitle: '',
       desc: '',
       cta: '',
+      ctaUrl: '',
     });
     setExistingImages([]);
     setSelectedFiles([]);
@@ -156,6 +160,7 @@ const Sliders = ({ currentUser, onToast }) => {
       submitData.append('subtitle', formData.subtitle.trim());
       submitData.append('desc', formData.desc.trim());
       submitData.append('cta', formData.cta.trim());
+      submitData.append('ctaUrl', formData.ctaUrl.trim());
 
       if (editingSlider) {
         submitData.append('existingImages', JSON.stringify(existingImages.map(img => img.filename || img)));
@@ -290,8 +295,18 @@ const Sliders = ({ currentUser, onToast }) => {
                   </p>
                 )}
                 {slider.desc && (
-                  <p className="text-sm text-gray-600 line-clamp-2 mb-4 leading-relaxed">
+                  <p className="text-sm text-gray-600 line-clamp-2 mb-2 leading-relaxed">
                     {slider.desc}
+                  </p>
+                )}
+                {slider.cta && (
+                  <p className="text-sm font-medium text-[#ff4747] mb-2 bg-red-50 px-3 py-1.5 rounded-lg inline-block flex items-center gap-1">
+                    <Link size={12} /> {slider.cta}
+                  </p>
+                )}
+                {slider.ctaUrl && (
+                  <p className="text-xs text-gray-500 mb-4 truncate">
+                    Link: {slider.ctaUrl}
                   </p>
                 )}
                 <div className="flex gap-3">
@@ -373,6 +388,34 @@ const Sliders = ({ currentUser, onToast }) => {
                   rows={4}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#ff4747] focus:border-[#ff4747] transition-all duration-200 bg-gray-50 focus:bg-white resize-none"
                   placeholder="Slider description text"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-800">
+                  Call to Action (CTA) Text
+                </label>
+                <input
+                  type="text"
+                  name="cta"
+                  value={formData.cta}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#ff4747] focus:border-[#ff4747] transition-all duration-200 bg-gray-50 focus:bg-white"
+                  placeholder="e.g., Shop Now"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-800 flex items-center gap-2">
+                  CTA Link <Link size={16} className="text-gray-500" />
+                </label>
+                <input
+                  type="url"
+                  name="ctaUrl"
+                  value={formData.ctaUrl}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#ff4747] focus:border-[#ff4747] transition-all duration-200 bg-gray-50 focus:bg-white"
+                  placeholder="e.g., /products or https://example.com"
                 />
               </div>
 

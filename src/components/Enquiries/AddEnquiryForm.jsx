@@ -21,11 +21,10 @@ const FormInput = ({ label, name, type = 'text', value, onChange, hasError, requ
       name={name}
       value={value}
       onChange={onChange}
-      className={`w-full px-3 py-2 rounded-lg border transition-shadow ${
-        hasError
+      className={`w-full px-3 py-2 rounded-lg border transition-shadow ${hasError
           ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
           : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
-      }`}
+        }`}
       {...props}
     />
     {hasError && <p className="mt-1 text-sm text-red-600">{hasError}</p>}
@@ -48,11 +47,10 @@ const FormSelect = ({ label, name, options, value, onChange, hasError, required 
         aria-required={required}
         aria-invalid={!!hasError}
         aria-describedby={hasError ? `${name}-error` : undefined}
-        className={`w-full px-3 py-2 rounded-lg border appearance-none bg-white transition-shadow disabled:bg-gray-100 disabled:cursor-not-allowed ${
-          hasError
+        className={`w-full px-3 py-2 rounded-lg border appearance-none bg-white transition-shadow disabled:bg-gray-100 disabled:cursor-not-allowed ${hasError
             ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
             : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
-        }`}
+          }`}
         {...props}
       >
         {showPlaceholder && (
@@ -134,9 +132,8 @@ const TimePicker = ({ label, name, value, onChange, hasError, required }) => {
       {/* Input box */}
       <div
         onClick={handleOpen}
-        className={`w-full px-3 py-2 rounded-lg border bg-white cursor-pointer ${
-          hasError ? "border-red-300" : "border-gray-300"
-        }`}
+        className={`w-full px-3 py-2 rounded-lg border bg-white cursor-pointer ${hasError ? "border-red-300" : "border-gray-300"
+          }`}
       >
         {value || "--:--"}
       </div>
@@ -295,11 +292,10 @@ const LocationSelector = ({
             value={pincode}
             onChange={handlePincodeChange}
             placeholder="Enter 6-digit pincode"
-            className={`w-full px-3 py-2 pr-10 rounded-lg border transition-all ${
-              errors.pincode
+            className={`w-full px-3 py-2 pr-10 rounded-lg border transition-all ${errors.pincode
                 ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
                 : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
-            }`}
+              }`}
             maxLength={6}
           />
           {loading && (
@@ -348,11 +344,10 @@ const LocationSelector = ({
             type="text"
             value={state}
             onChange={(e) => onLocationChange({ state: e.target.value, city })}
-            className={`w-full px-3 py-2 rounded-lg border transition-all ${
-              errors.state
+            className={`w-full px-3 py-2 rounded-lg border transition-all ${errors.state
                 ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
                 : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
-            } ${!manualOverride && pincode.length === 6 ? 'bg-blue-50' : ''}`}
+              } ${!manualOverride && pincode.length === 6 ? 'bg-blue-50' : ''}`}
             placeholder="Enter state"
             readOnly={!manualOverride && suggestions.length > 0}
           />
@@ -366,11 +361,10 @@ const LocationSelector = ({
             type="text"
             value={city}
             onChange={(e) => onLocationChange({ state, city: e.target.value })}
-            className={`w-full px-3 py-2 rounded-lg border transition-all ${
-              errors.city
+            className={`w-full px-3 py-2 rounded-lg border transition-all ${errors.city
                 ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
                 : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
-            } ${!manualOverride && pincode.length === 6 ? 'bg-blue-50' : ''}`}
+              } ${!manualOverride && pincode.length === 6 ? 'bg-blue-50' : ''}`}
             placeholder="Enter city or district"
             readOnly={!manualOverride && suggestions.length > 0}
           />
@@ -652,7 +646,14 @@ const AddEnquiryForm = ({
               label="Design Number"
               name="productDesignNumber"
               value={formData.productDesignNumber}
-              onChange={(e) => handleInputChange('productDesignNumber', e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === '' || /^\d+$/.test(val)) {
+                  handleInputChange('productDesignNumber', val);
+                }
+              }}
+              inputMode="numeric"
+              pattern="[0-9]*"
               hasError={validationErrors.productDesignNumber}
             />
           </div>

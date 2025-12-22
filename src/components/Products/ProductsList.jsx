@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { debounce } from 'lodash';
 import { Plus, Search, Filter, Edit, Eye, Trash2, Package, Image, AlertCircle, Star, Tag, X } from 'lucide-react';
 import Table from '../Common/Table';
@@ -32,8 +32,40 @@ const formatRating = (rating) => {
   return Number(rating).toFixed(1);
 };
 
+const FilterInput = ({ icon: Icon, placeholder, value, onChange, onClear, type = 'text', ...props }) => (
+  <div className="relative group">
+    {Icon && (
+      <Icon
+        className="absolute left-3 top-1/2 text-gray-400 transform -translate-y-1/2 group-focus-within:text-primary transition-colors"
+        size={18}
+      />
+    )}
+    <input
+      type={type}
+      placeholder={placeholder}
+      value={value}
+      onChange={onChange}
+      className={`py-2 ${onClear ? 'pr-9' : 'pr-4'} ${Icon ? 'pl-10' : 'pl-3'} w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto bg-white transition-all text-sm`}
+      {...props}
+    />
+    {value && onClear && (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onClear();
+        }}
+        className="absolute right-2 top-1/2 p-1 text-gray-400 hover:text-red-500 transform -translate-y-1/2 transition-colors rounded-full hover:bg-red-50"
+        title="Clear"
+      >
+        <X size={14} />
+      </button>
+    )}
+  </div>
+);
+
 const ProductsList = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
@@ -50,27 +82,45 @@ const ProductsList = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
+
+  // Initialize state from URL search params
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [filters, setFilters] = useState({
-    categoryId: '',
-    subcategoryId: '',
-    isActive: '',
-    designNumber: '',
-    minDesignNumber: '',
-    maxDesignNumber: '',
-    minPrice: '',
-    maxPrice: '',
+    categoryId: searchParams.get('categoryId') || '',
+    subcategoryId: searchParams.get('subcategoryId') || '',
+    isActive: searchParams.get('isActive') || '',
+    designNumber: searchParams.get('designNumber') || '',
+    minDesignNumber: searchParams.get('minDesignNumber') || '',
+    maxDesignNumber: searchParams.get('maxDesignNumber') || '',
+    minPrice: searchParams.get('minPrice') || '',
+    maxPrice: searchParams.get('maxPrice') || '',
   });
+
   const [counts, setCounts] = useState({
     totalCount: 0,
     activeCount: 0,
     inactiveCount: 0,
   });
-  const [showFilters, setShowFilters] = useState(false);
+
+  // Open filters if any are active
+  const hasActiveURLFilters = useMemo(() => {
+    return Object.values({
+      categoryId: searchParams.get('categoryId'),
+      subcategoryId: searchParams.get('subcategoryId'),
+      isActive: searchParams.get('isActive'),
+      designNumber: searchParams.get('designNumber'),
+      minDesignNumber: searchParams.get('minDesignNumber'),
+      maxDesignNumber: searchParams.get('maxDesignNumber'),
+      minPrice: searchParams.get('minPrice'),
+      maxPrice: searchParams.get('maxPrice'),
+    }).some(v => v !== null && v !== '');
+  }, []);
+
+  const [showFilters, setShowFilters] = useState(hasActiveURLFilters);
 
   // Pagination state
   const [pagination, setPagination] = useState({
-    currentPage: 1,
+    currentPage: parseInt(searchParams.get('page')) || 1,
     totalPages: 1,
     totalProducts: 0,
     limit: 20,
@@ -111,6 +161,29 @@ const ProductsList = () => {
     );
     return JSON.stringify(cleanParams);
   }, [pagination.currentPage, pagination.limit, searchTerm, filters]);
+
+  // Sync state to URL search params
+  useEffect(() => {
+    const params = {
+      page: pagination.currentPage > 1 ? pagination.currentPage : undefined,
+      search: searchTerm.trim() || undefined,
+      categoryId: filters.categoryId || undefined,
+      subcategoryId: filters.subcategoryId || undefined,
+      isActive: filters.isActive || undefined,
+      designNumber: filters.designNumber.trim() || undefined,
+      minDesignNumber: filters.minDesignNumber.trim() || undefined,
+      maxDesignNumber: filters.maxDesignNumber.trim() || undefined,
+      minPrice: filters.minPrice.trim() || undefined,
+      maxPrice: filters.maxPrice.trim() || undefined,
+    };
+
+    // Remove undefined values
+    const cleanParams = Object.fromEntries(
+      Object.entries(params).filter(([_, v]) => v !== undefined)
+    );
+
+    setSearchParams(cleanParams, { replace: true });
+  }, [searchTerm, filters, pagination.currentPage, setSearchParams]);
 
   // Load products function
   const loadProducts = useCallback(async () => {
@@ -183,7 +256,7 @@ const ProductsList = () => {
   // Initialize component
   useEffect(() => {
     isMountedRef.current = true;
-    
+
     if (!isInitialLoadRef.current) {
       isInitialLoadRef.current = true;
       loadInitialData();
@@ -278,50 +351,50 @@ const ProductsList = () => {
   };
 
   const handleFormSuccess = (isEdit, updatedProduct) => {
-  console.log('handleFormSuccess called:', { isEdit, updatedProduct });
-  
-  setSuccess(isEdit ? 'Product updated successfully!' : 'Product created successfully!');
-  
-  if (isEdit && updatedProduct) {
-    // Update the product in the state immediately
-    setProducts(prevProducts => 
-      prevProducts.map(product => 
-        product.id === updatedProduct.id ? { ...product, ...updatedProduct } : product
-      )
-    );
-    
-    // Also update selected product if it's the same
-    if (selectedProduct && selectedProduct.id === updatedProduct.id) {
-      setSelectedProduct(prev => ({ ...prev, ...updatedProduct }));
+    console.log('handleFormSuccess called:', { isEdit, updatedProduct });
+
+    setSuccess(isEdit ? 'Product updated successfully!' : 'Product created successfully!');
+
+    if (isEdit && updatedProduct) {
+      // Update the product in the state immediately
+      setProducts(prevProducts =>
+        prevProducts.map(product =>
+          product.id === updatedProduct.id ? { ...product, ...updatedProduct } : product
+        )
+      );
+
+      // Also update selected product if it's the same
+      if (selectedProduct && selectedProduct.id === updatedProduct.id) {
+        setSelectedProduct(prev => ({ ...prev, ...updatedProduct }));
+      }
+
+      // Close the edit modal immediately
+      setShowEditProduct(false);
+      setEditProduct({});
+    } else {
+      // For new product, add it to the beginning of the list immediately
+      if (updatedProduct) {
+        setProducts(prevProducts => [updatedProduct, ...prevProducts]);
+
+        // Update counts
+        setCounts(prev => ({
+          totalCount: prev.totalCount + 1,
+          activeCount: updatedProduct.isActive ? prev.activeCount + 1 : prev.activeCount,
+          inactiveCount: !updatedProduct.isActive ? prev.inactiveCount + 1 : prev.inactiveCount,
+        }));
+      }
+
+      // Close the add modal immediately
+      setShowAddProduct(false);
     }
-    
-    // Close the edit modal immediately
-    setShowEditProduct(false);
-    setEditProduct({});
-  } else {
-    // For new product, add it to the beginning of the list immediately
-    if (updatedProduct) {
-      setProducts(prevProducts => [updatedProduct, ...prevProducts]);
-      
-      // Update counts
-      setCounts(prev => ({
-        totalCount: prev.totalCount + 1,
-        activeCount: updatedProduct.isActive ? prev.activeCount + 1 : prev.activeCount,
-        inactiveCount: !updatedProduct.isActive ? prev.inactiveCount + 1 : prev.inactiveCount,
-      }));
-    }
-    
-    // Close the add modal immediately
-    setShowAddProduct(false);
-  }
-  
-  // Optionally refresh the list to ensure data consistency
-  setTimeout(() => {
-    loadProducts();
-  }, 500);
-  
-  setTimeout(() => setSuccess(null), 3000);
-};
+
+    // Optionally refresh the list to ensure data consistency
+    setTimeout(() => {
+      loadProducts();
+    }, 500);
+
+    setTimeout(() => setSuccess(null), 3000);
+  };
 
   const handleDeleteProduct = async (productId) => {
     if (!window.confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
@@ -330,7 +403,7 @@ const ProductsList = () => {
 
     const previousProducts = [...products];
     const deletedProduct = products.find(p => p.id === productId);
-    
+
     // Optimistic update
     setProducts(prev => prev.filter(product => product.id !== productId));
     setCounts(prev => ({
@@ -437,21 +510,45 @@ const ProductsList = () => {
   };
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-    setPagination(prev => ({ ...prev, currentPage: 1 }));
-    if (key === 'categoryId' && value) {
-      loadSubcategories(value);
+    // Restrict design number filters to numeric values only
+    if (['designNumber', 'minDesignNumber', 'maxDesignNumber'].includes(key)) {
+      if (value !== '' && !/^\d+$/.test(value)) {
+        return;
+      }
     }
-    if (key === 'categoryId' && !value) {
-      setFilters(prev => ({ ...prev, subcategoryId: '' }));
+
+    setFilters(prev => {
+      const newFilters = { ...prev, [key]: value };
+
+      // Mutual exclusivity logic for Design Number
+      if (key === 'designNumber' && value !== '') {
+        newFilters.minDesignNumber = '';
+        newFilters.maxDesignNumber = '';
+      } else if (['minDesignNumber', 'maxDesignNumber'].includes(key) && value !== '') {
+        newFilters.designNumber = '';
+      }
+
+      return newFilters;
+    });
+
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+
+    if (key === 'categoryId') {
+      if (value) {
+        loadSubcategories(value);
+      } else {
+        setSubcategories([]);
+        setFilters(prev => ({ ...prev, subcategoryId: '' }));
+      }
     }
   };
 
-  const handleClearFilter = (filterKey) => {
-    handleFilterChange(filterKey, '');
+  const handleClearFilter = (key) => {
+    handleFilterChange(key, '');
   };
 
   const handleClearAllFilters = () => {
+    setSearchTerm('');
     setFilters({
       categoryId: '',
       subcategoryId: '',
@@ -462,8 +559,9 @@ const ProductsList = () => {
       minPrice: '',
       maxPrice: '',
     });
-    setSearchTerm('');
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
   };
+
 
   const handlePageChange = (page) => {
     setPagination(prev => ({ ...prev, currentPage: page }));
@@ -544,8 +642,8 @@ const ProductsList = () => {
       render: (value) => (
         <span
           className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${value
-              ? 'bg-green-100 text-green-800'
-              : 'bg-red-100 text-red-800'
+            ? 'bg-green-100 text-green-800'
+            : 'bg-red-100 text-red-800'
             }`}
         >
           {value ? 'Active' : 'Inactive'}
@@ -648,15 +746,27 @@ const ProductsList = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+        <div
+          className={`p-4 bg-white rounded-lg border shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-primary ${filters.isActive === '' ? 'border-primary ring-2 ring-primary/20' : 'border-gray-200'}`}
+          onClick={() => handleFilterChange('isActive', '')}
+          title="Show all products"
+        >
           <div className="text-2xl font-bold font-roboto text-primary">{stats.total}</div>
           <div className="text-sm text-gray-600">Total Products</div>
         </div>
-        <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+        <div
+          className={`p-4 bg-white rounded-lg border shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-green-500 ${filters.isActive === 'true' ? 'border-green-500 ring-2 ring-green-200' : 'border-gray-200'}`}
+          onClick={() => handleFilterChange('isActive', 'true')}
+          title="Show only active products"
+        >
           <div className="text-2xl font-bold font-roboto text-green-600">{stats.active}</div>
           <div className="text-sm text-gray-600">Active Products</div>
         </div>
-        <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+        <div
+          className={`p-4 bg-white rounded-lg border shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-red-500 ${filters.isActive === 'false' ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-200'}`}
+          onClick={() => handleFilterChange('isActive', 'false')}
+          title="Show only inactive products"
+        >
           <div className="text-2xl font-bold font-roboto text-red-600">{stats.inactive}</div>
           <div className="text-sm text-gray-600">Inactive Products</div>
         </div>
@@ -665,32 +775,27 @@ const ProductsList = () => {
       <div className="p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row">
           <div className="flex-1">
-            <div className="relative">
-              <Search
-                className="absolute left-3 top-1/2 text-gray-400 transform -translate-y-1/2"
-                size={18}
-              />
-              <input
-                type="text"
-                placeholder="Search by product name..."
-                value={searchTerm}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="py-2 pr-4 pl-10 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
-              />
-            </div>
+            <FilterInput
+              icon={Search}
+              placeholder="Search by product name..."
+              value={searchTerm}
+              onChange={(e) => handleSearch(e.target.value)}
+              onClear={() => handleSearch('')}
+              className="py-2 pr-4 pl-10 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
+            />
           </div>
           <div className="flex space-x-2">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center px-4 py-2 space-x-2 rounded-lg border border-gray-300 hover:bg-gray-50 ${showFilters ? 'bg-gray-100' : ''}`}
+              className={`flex items-center px-4 py-2 space-x-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-all ${showFilters ? 'bg-primary text-white border-primary shadow-sm' : 'bg-white text-gray-700'}`}
             >
               <Filter size={16} />
-              <span>Filters</span>
+              <span>{showFilters ? 'Hide Filters' : 'Filters'}</span>
             </button>
             {hasActiveFilters && (
               <button
                 onClick={handleClearAllFilters}
-                className="flex items-center px-4 py-2 space-x-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50"
+                className="flex items-center px-4 py-2 space-x-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 transition-all"
               >
                 <X size={16} />
                 <span>Clear All</span>
@@ -700,217 +805,198 @@ const ProductsList = () => {
         </div>
 
         {showFilters && (
-          <div className="grid grid-cols-1 gap-4 pt-4 mt-4 border-t border-gray-200 sm:grid-cols-2 md:grid-cols-6">
-            <div className="relative">
-              <Tag
-                className="absolute left-3 top-1/2 text-gray-400 transform -translate-y-1/2"
-                size={18}
-              />
-              <input
-                type="text"
-                placeholder="Design Number"
-                value={filters.designNumber}
-                onChange={(e) => handleFilterChange('designNumber', e.target.value)}
-                className="py-2 pr-4 pl-10 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
-              />
+          <div className="pt-4 mt-6 border-t border-gray-200 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              {/* Design Number Group */}
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
+                <div className="flex items-center space-x-2 pb-1 border-b border-gray-200">
+                  <Tag size={14} className="text-primary" />
+                  <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Design Number</span>
+                </div>
+                <div className="space-y-3">
+                  <FilterInput
+                    placeholder="Exact Design #"
+                    value={filters.designNumber}
+                    onChange={(e) => handleFilterChange('designNumber', e.target.value)}
+                    onClear={() => handleClearFilter('designNumber')}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <FilterInput
+                      placeholder="Min #"
+                      value={filters.minDesignNumber}
+                      onChange={(e) => handleFilterChange('minDesignNumber', e.target.value)}
+                      onClear={() => handleClearFilter('minDesignNumber')}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                    />
+                    <FilterInput
+                      placeholder="Max #"
+                      value={filters.maxDesignNumber}
+                      onChange={(e) => handleFilterChange('maxDesignNumber', e.target.value)}
+                      onClear={() => handleClearFilter('maxDesignNumber')}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Price Group */}
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
+                <div className="flex items-center space-x-2 pb-1 border-b border-gray-200">
+                  <span className="text-primary font-bold text-sm">₹</span>
+                  <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Price Range</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <FilterInput
+                    type="number"
+                    placeholder="Min Price"
+                    value={filters.minPrice}
+                    onChange={(e) => handleFilterChange('minPrice', e.target.value)}
+                    onClear={() => handleClearFilter('minPrice')}
+                    min="0"
+                  />
+                  <FilterInput
+                    type="number"
+                    placeholder="Max Price"
+                    value={filters.maxPrice}
+                    onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
+                    onClear={() => handleClearFilter('maxPrice')}
+                    min="0"
+                  />
+                </div>
+              </div>
+
+              {/* Category & Status Group */}
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
+                <div className="flex items-center space-x-2 pb-1 border-b border-gray-200">
+                  <Package size={14} className="text-primary" />
+                  <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Categories & Status</span>
+                </div>
+                <div className="space-y-3 pt-1">
+                  <select
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto text-sm bg-white"
+                    value={filters.categoryId}
+                    onChange={(e) => handleFilterChange('categoryId', e.target.value)}
+                  >
+                    <option value="">All Categories</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto text-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      value={filters.subcategoryId}
+                      onChange={(e) => handleFilterChange('subcategoryId', e.target.value)}
+                      disabled={!filters.categoryId}
+                    >
+                      <option value="">Subcategory</option>
+                      {subcategories.map((subcat) => (
+                        <option key={subcat.id} value={subcat.id}>{subcat.name}</option>
+                      ))}
+                    </select>
+                    <select
+                      className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto text-sm bg-white"
+                      value={filters.isActive}
+                      onChange={(e) => handleFilterChange('isActive', e.target.value)}
+                    >
+                      <option value="">Status</option>
+                      <option value="true">Active</option>
+                      <option value="false">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="relative">
-              <Tag
-                className="absolute left-3 top-1/2 text-gray-400 transform -translate-y-1/2"
-                size={18}
-              />
-              <input
-                type="text"
-                placeholder="Min Design Number"
-                value={filters.minDesignNumber}
-                onChange={(e) => handleFilterChange('minDesignNumber', e.target.value)}
-                className="py-2 pr-4 pl-10 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
-              />
-            </div>
-            <div className="relative">
-              <Tag
-                className="absolute left-3 top-1/2 text-gray-400 transform -translate-y-1/2"
-                size={18}
-              />
-              <input
-                type="text"
-                placeholder="Max Design Number"
-                value={filters.maxDesignNumber}
-                onChange={(e) => handleFilterChange('maxDesignNumber', e.target.value)}
-                className="py-2 pr-4 pl-10 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
-              />
-            </div>
-            <div className="relative">
-              <Tag
-                className="absolute left-3 top-1/2 text-gray-400 transform -translate-y-1/2"
-                size={18}
-              />
-              <input
-                type="number"
-                placeholder="Min Price"
-                value={filters.minPrice}
-                onChange={(e) => handleFilterChange('minPrice', e.target.value)}
-                className="py-2 pr-4 pl-10 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
-                min="0"
-              />
-            </div>
-            <div className="relative">
-              <Tag
-                className="absolute left-3 top-1/2 text-gray-400 transform -translate-y-1/2"
-                size={18}
-              />
-              <input
-                type="number"
-                placeholder="Max Price"
-                value={filters.maxPrice}
-                onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
-                className="py-2 pr-4 pl-10 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
-                min="0"
-              />
-            </div>
-            <select
-              className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
-              value={filters.categoryId}
-              onChange={(e) => handleFilterChange('categoryId', e.target.value)}
-            >
-              <option value="">All Categories</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
-            <select
-              className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
-              value={filters.subcategoryId}
-              onChange={(e) => handleFilterChange('subcategoryId', e.target.value)}
-              disabled={!filters.categoryId}
-            >
-              <option value="">All Subcategories</option>
-              {subcategories.map((subcat) => (
-                <option key={subcat.id} value={subcat.id}>{subcat.name}</option>
-              ))}
-            </select>
-            <select
-              className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
-              value={filters.isActive}
-              onChange={(e) => handleFilterChange('isActive', e.target.value)}
-            >
-              <option value="">All Statuses</option>
-              <option value="true">Active</option>
-              <option value="false">Inactive</option>
-            </select>
+          </div>
+        )}
+
+        {hasActiveFilters && (
+          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-100">
+            {searchTerm && (
+              <div className="flex items-center px-3 py-1 bg-gray-100 rounded-full border border-gray-200">
+                <span className="text-gray-700 text-xs font-medium">Search: {searchTerm}</span>
+                <button onClick={() => handleSearch('')} className="ml-2 text-gray-400 hover:text-red-500">
+                  <X size={12} />
+                </button>
+              </div>
+            )}
+            {filters.designNumber && (
+              <div className="flex items-center px-3 py-1 bg-blue-50 rounded-full border border-blue-200">
+                <span className="text-blue-700 text-xs font-medium">Design #: {filters.designNumber}</span>
+                <button onClick={() => handleClearFilter('designNumber')} className="ml-2 text-blue-400 hover:text-blue-600">
+                  <X size={12} />
+                </button>
+              </div>
+            )}
+            {(filters.minDesignNumber || filters.maxDesignNumber) && (
+              <div className="flex items-center px-3 py-1 bg-blue-50 rounded-full border border-blue-200">
+                <span className="text-blue-700 text-xs font-medium">
+                  Range: {filters.minDesignNumber || 0}-{filters.maxDesignNumber || '∞'}
+                </span>
+                <button
+                  onClick={() => {
+                    handleClearFilter('minDesignNumber');
+                    handleClearFilter('maxDesignNumber');
+                  }}
+                  className="ml-2 text-blue-400 hover:text-blue-600"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            )}
+            {(filters.minPrice || filters.maxPrice) && (
+              <div className="flex items-center px-3 py-1 bg-green-50 rounded-full border border-green-200">
+                <span className="text-green-700 text-xs font-medium">
+                  Price: ₹{filters.minPrice || 0}-₹{filters.maxPrice || '∞'}
+                </span>
+                <button
+                  onClick={() => {
+                    handleClearFilter('minPrice');
+                    handleClearFilter('maxPrice');
+                  }}
+                  className="ml-2 text-green-400 hover:text-green-600"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            )}
+            {filters.categoryId && (
+              <div className="flex items-center px-3 py-1 bg-purple-50 rounded-full border border-purple-200">
+                <span className="text-purple-700 text-xs font-medium">
+                  Category: {categories.find(c => c.id.toString() === filters.categoryId.toString())?.name || filters.categoryId}
+                </span>
+                <button onClick={() => handleClearFilter('categoryId')} className="ml-2 text-purple-400 hover:text-purple-600">
+                  <X size={12} />
+                </button>
+              </div>
+            )}
+            {filters.subcategoryId && (
+              <div className="flex items-center px-3 py-1 bg-indigo-50 rounded-full border border-indigo-200">
+                <span className="text-indigo-700 text-xs font-medium">
+                  Subcategory: {subcategories.find(c => c.id.toString() === filters.subcategoryId.toString())?.name || filters.subcategoryId}
+                </span>
+                <button onClick={() => handleClearFilter('subcategoryId')} className="ml-2 text-indigo-400 hover:text-indigo-600">
+                  <X size={12} />
+                </button>
+              </div>
+            )}
+            {filters.isActive !== '' && (
+              <div className="flex items-center px-3 py-1 bg-orange-50 rounded-full border border-orange-200">
+                <span className="text-orange-700 text-xs font-medium">
+                  {filters.isActive === 'true' ? 'Active' : 'Inactive'}
+                </span>
+                <button onClick={() => handleClearFilter('isActive')} className="ml-2 text-orange-400 hover:text-orange-600">
+                  <X size={12} />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
-
-      {hasActiveFilters && (
-        <div className="flex flex-wrap gap-2">
-          {searchTerm && (
-            <div className="flex items-center p-2 bg-blue-50 rounded-lg border border-blue-200">
-              <span className="text-blue-800 text-sm">Search: "{searchTerm}"</span>
-              <button
-                onClick={() => handleSearch('')}
-                className="ml-2 text-blue-600 hover:text-blue-800"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          )}
-          {filters.designNumber && (
-            <div className="flex items-center p-2 bg-blue-50 rounded-lg border border-blue-200">
-              <span className="text-blue-800 text-sm">Design Number: {filters.designNumber}</span>
-              <button
-                onClick={() => handleClearFilter('designNumber')}
-                className="ml-2 text-blue-600 hover:text-blue-800"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          )}
-          {filters.minDesignNumber && (
-            <div className="flex items-center p-2 bg-blue-50 rounded-lg border border-blue-200">
-              <span className="text-blue-800 text-sm">Min Design: {filters.minDesignNumber}</span>
-              <button
-                onClick={() => handleClearFilter('minDesignNumber')}
-                className="ml-2 text-blue-600 hover:text-blue-800"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          )}
-          {filters.maxDesignNumber && (
-            <div className="flex items-center p-2 bg-blue-50 rounded-lg border border-blue-200">
-              <span className="text-blue-800 text-sm">Max Design: {filters.maxDesignNumber}</span>
-              <button
-                onClick={() => handleClearFilter('maxDesignNumber')}
-                className="ml-2 text-blue-600 hover:text-blue-800"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          )}
-          {filters.minPrice && (
-            <div className="flex items-center p-2 bg-blue-50 rounded-lg border border-blue-200">
-              <span className="text-blue-800 text-sm">Min Price: ₹{filters.minPrice}</span>
-              <button
-                onClick={() => handleClearFilter('minPrice')}
-                className="ml-2 text-blue-600 hover:text-blue-800"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          )}
-          {filters.maxPrice && (
-            <div className="flex items-center p-2 bg-blue-50 rounded-lg border border-blue-200">
-              <span className="text-blue-800 text-sm">Max Price: ₹{filters.maxPrice}</span>
-              <button
-                onClick={() => handleClearFilter('maxPrice')}
-                className="ml-2 text-blue-600 hover:text-blue-800"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          )}
-          {filters.categoryId && (
-            <div className="flex items-center p-2 bg-green-50 rounded-lg border border-green-200">
-              <span className="text-green-800 text-sm">
-                Category: {categories.find(c => c.id === filters.categoryId)?.name || filters.categoryId}
-              </span>
-              <button
-                onClick={() => handleClearFilter('categoryId')}
-                className="ml-2 text-green-600 hover:text-green-800"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          )}
-          {filters.subcategoryId && (
-            <div className="flex items-center p-2 bg-green-50 rounded-lg border border-green-200">
-              <span className="text-green-800 text-sm">
-                Subcategory: {subcategories.find(s => s.id === filters.subcategoryId)?.name || filters.subcategoryId}
-              </span>
-              <button
-                onClick={() => handleClearFilter('subcategoryId')}
-                className="ml-2 text-green-600 hover:text-green-800"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          )}
-          {filters.isActive !== '' && (
-            <div className="flex items-center p-2 bg-purple-50 rounded-lg border border-purple-200">
-              <span className="text-purple-800 text-sm">
-                Status: {filters.isActive === 'true' ? 'Active' : 'Inactive'}
-              </span>
-              <button
-                onClick={() => handleClearFilter('isActive')}
-                className="ml-2 text-purple-600 hover:text-purple-800"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          )}
-        </div>
-      )}
 
       <Table
         data={products}
@@ -1045,7 +1131,7 @@ const ProductsList = () => {
           </div>
         </div>
       </Modal>
-    </div>
+    </div >
   );
 };
 

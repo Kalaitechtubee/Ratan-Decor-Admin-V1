@@ -122,7 +122,7 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
   const toggleUserTypeSelection = (userType) => {
     setFormProduct(prev => {
       let newVisibleTo;
-      
+
       if (userType === 'all') {
         newVisibleTo = prev.visibleTo.includes('all') ? [] : ['all'];
       } else if (prev.visibleTo.includes('all')) {
@@ -134,7 +134,7 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
           newVisibleTo = [...prev.visibleTo, userType];
         }
       }
-      
+
       return { ...prev, visibleTo: newVisibleTo };
     });
   };
@@ -142,7 +142,7 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
   const handleFileSelect = (event) => {
     const files = Array.from(event.target.files);
     const existingNames = selectedFiles.map(file => file.name);
-    
+
     if (isEdit) {
       existingImages.forEach(url => {
         const filename = url.split('/').pop();
@@ -182,7 +182,7 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
     setIsDragOver(false);
     const files = Array.from(event.dataTransfer.files);
     const existingNames = selectedFiles.map(file => file.name);
-    
+
     if (isEdit) {
       existingImages.forEach(url => {
         const filename = url.split('/').pop();
@@ -236,40 +236,40 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
     if (e) {
       e.preventDefault();
     }
-    
+
     if (isSubmitting) {
       return;
     }
-    
+
     setIsSubmitting(true);
     setSubmitting(true);
-    
+
     try {
       console.log('=== Starting Product Form Submission ===');
-      
+
       // Validation
       const errors = [];
-      
+
       if (!formProduct.name.trim()) {
         errors.push('Product name is required');
       }
-      
+
       if (!formProduct.generalPrice) {
         errors.push('General Price is required');
       }
-      
+
       if (!formProduct.architectPrice) {
         errors.push('Architect Price is required');
       }
-      
+
       if (!formProduct.dealerPrice) {
         errors.push('Dealer Price is required');
       }
-      
+
       if (formProduct.visibleTo.length === 0) {
         errors.push('At least one user type must be selected');
       }
-      
+
       if (errors.length > 0) {
         throw new Error(errors.join(', '));
       }
@@ -289,14 +289,14 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
       }
 
       const formData = new FormData();
-      
+
       // Add all fields with proper formatting
       formData.append('visibleTo', JSON.stringify(formProduct.visibleTo));
-      
+
       if (formProduct.categoryId) {
         formData.append('categoryId', formProduct.categoryId);
       }
-      
+
       formData.append('subcategoryId', formProduct.subcategoryId || '');
       formData.append('name', formProduct.name.trim());
       formData.append('description', formProduct.description?.trim() || '');
@@ -339,44 +339,44 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
       }
 
       console.log('Calling API...');
-      
+
       let response;
       if (isEdit) {
         response = await updateProduct(initialProduct.id, formData);
       } else {
         response = await createProduct(formData);
       }
-      
+
       // In handleSubmit function, when API call succeeds:
-console.log('API Response:', response);
+      console.log('API Response:', response);
 
-if (!response.success) {
-  throw new Error(response.message || 'Failed to save product');
-}
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to save product');
+      }
 
-// Get the full product data from response
-const productData = response.product || {
-  ...formProduct,
-  id: isEdit ? initialProduct.id : response.productId,
-  imageUrls: response.imageUrls || existingImages,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-  // Ensure we have category name if available
-  category: response.category || formProduct.category,
-};
+      // Get the full product data from response
+      const productData = response.product || {
+        ...formProduct,
+        id: isEdit ? initialProduct.id : response.productId,
+        imageUrls: response.imageUrls || existingImages,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        // Ensure we have category name if available
+        category: response.category || formProduct.category,
+      };
 
-console.log('Product data to return:', productData);
+      console.log('Product data to return:', productData);
 
-// Call onSuccess with updated product data
-onSuccess(isEdit, productData);
+      // Call onSuccess with updated product data
+      onSuccess(isEdit, productData);
 
-// Auto-close the form after successful submission
-if (onClose) {
-  setTimeout(() => {
-    onClose();
-  }, 500); // Small delay to show success message
-}
-      
+      // Auto-close the form after successful submission
+      if (onClose) {
+        setTimeout(() => {
+          onClose();
+        }, 500); // Small delay to show success message
+      }
+
     } catch (error) {
       console.error('Form submission error:', error);
       handleApiError(error, isEdit ? 'Failed to update product' : 'Failed to create product');
@@ -393,7 +393,7 @@ if (onClose) {
         <label className="block mb-2 text-sm font-medium text-gray-700">
           Visible To Business Types <span className="text-red-500">*</span>
         </label>
-        <div 
+        <div
           className="px-3 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto flex justify-between items-center cursor-pointer"
           onClick={() => setShowUserTypeDropdown(!showUserTypeDropdown)}
         >
@@ -402,7 +402,7 @@ if (onClose) {
           </span>
           <ChevronDown size={16} className={`transform transition-transform ${showUserTypeDropdown ? 'rotate-180' : ''}`} />
         </div>
-        
+
         {showUserTypeDropdown && (
           <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg">
             {userTypeOptions.map((option) => (
@@ -411,9 +411,8 @@ if (onClose) {
                 className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center"
                 onClick={() => toggleUserTypeSelection(option.value)}
               >
-                <div className={`w-5 h-5 border rounded mr-2 flex items-center justify-center ${
-                  formProduct.visibleTo.includes(option.value) ? 'bg-primary border-primary' : 'border-gray-300'
-                }`}>
+                <div className={`w-5 h-5 border rounded mr-2 flex items-center justify-center ${formProduct.visibleTo.includes(option.value) ? 'bg-primary border-primary' : 'border-gray-300'
+                  }`}>
                   {formProduct.visibleTo.includes(option.value) && (
                     <Check size={14} className="text-white" />
                   )}
@@ -507,8 +506,15 @@ if (onClose) {
         <label className="block mb-2 text-sm font-medium text-gray-700">Design Number</label>
         <input
           type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
           value={formProduct.designNumber}
-          onChange={(e) => handleChange('designNumber', e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            if (value === '' || /^\d+$/.test(value)) {
+              handleChange('designNumber', value);
+            }
+          }}
           className="px-3 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
         />
       </div>

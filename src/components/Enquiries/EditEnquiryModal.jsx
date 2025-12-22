@@ -111,11 +111,10 @@ const LocationSelector = ({
             value={pincode}
             onChange={handlePincodeChange}
             placeholder="Enter 6-digit pincode"
-            className={`w-full px-3 py-2 pr-10 rounded-lg border transition-all ${
-              errors.pincode
+            className={`w-full px-3 py-2 pr-10 rounded-lg border transition-all ${errors.pincode
                 ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
                 : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
-            }`}
+              }`}
             maxLength={6}
           />
           {loading && (
@@ -164,11 +163,10 @@ const LocationSelector = ({
             type="text"
             value={state}
             onChange={(e) => onLocationChange({ state: e.target.value, city })}
-            className={`w-full px-3 py-2 rounded-lg border transition-all ${
-              errors.state
+            className={`w-full px-3 py-2 rounded-lg border transition-all ${errors.state
                 ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
                 : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
-            } ${!manualOverride && pincode.length === 6 ? 'bg-blue-50' : ''}`}
+              } ${!manualOverride && pincode.length === 6 ? 'bg-blue-50' : ''}`}
             placeholder="Enter state"
             readOnly={!manualOverride && suggestions.length > 0}
           />
@@ -182,11 +180,10 @@ const LocationSelector = ({
             type="text"
             value={city}
             onChange={(e) => onLocationChange({ state, city: e.target.value })}
-            className={`w-full px-3 py-2 rounded-lg border transition-all ${
-              errors.city
+            className={`w-full px-3 py-2 rounded-lg border transition-all ${errors.city
                 ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
                 : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
-            } ${!manualOverride && pincode.length === 6 ? 'bg-blue-50' : ''}`}
+              } ${!manualOverride && pincode.length === 6 ? 'bg-blue-50' : ''}`}
             placeholder="Enter city or district"
             readOnly={!manualOverride && suggestions.length > 0}
           />
@@ -220,7 +217,7 @@ const EditEnquiryModal = ({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
-  
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -244,7 +241,7 @@ const EditEnquiryModal = ({
         try {
           const response = await getEnquiryById(enquiryId);
           const enquiry = response.data;
-          
+
           setFormData({
             name: enquiry.name || '',
             email: enquiry.email || '',
@@ -302,14 +299,17 @@ const EditEnquiryModal = ({
           name={name}
           value={formData[name]}
           onChange={(e) => {
-            setFormData({ ...formData, [name]: e.target.value });
+            const val = e.target.value;
+            if (name === 'productDesignNumber' && val !== '' && !/^\d+$/.test(val)) {
+              return;
+            }
+            setFormData({ ...formData, [name]: val });
             if (hasError) setValidationErrors((prev) => ({ ...prev, [name]: undefined }));
           }}
-          className={`w-full px-3 py-2 rounded-lg border transition-shadow ${
-            hasError
+          className={`w-full px-3 py-2 rounded-lg border transition-shadow ${hasError
               ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
               : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
-          }`}
+            }`}
           {...props}
         />
         {hasError && <p className="mt-1 text-sm text-red-600">{hasError}</p>}
@@ -331,11 +331,10 @@ const EditEnquiryModal = ({
             setFormData({ ...formData, [name]: e.target.value });
             if (hasError) setValidationErrors((prev) => ({ ...prev, [name]: undefined }));
           }}
-          className={`w-full px-3 py-2 rounded-lg border transition-shadow ${
-            hasError
+          className={`w-full px-3 py-2 rounded-lg border transition-shadow ${hasError
               ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
               : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
-          }`}
+            }`}
           {...props}
         >
           {options.map((option) => (
