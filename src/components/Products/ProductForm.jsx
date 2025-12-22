@@ -42,10 +42,37 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
   ];
 
   useEffect(() => {
+    console.log('ProductForm: initialProduct changed', initialProduct);
+
     if (initialProduct) {
-      setFormProduct({
+      // Determine category and subcategory IDs based on the nested category object
+      let categoryId = '';
+      let subcategoryId = '';
+
+      if (initialProduct.category) {
+        console.log('ProductForm: has category object', initialProduct.category);
+        if (initialProduct.category.parentId) {
+          // If it has a parent, the parent is the main Category, and this is the Subcategory
+          categoryId = initialProduct.category.parentId;
+          subcategoryId = initialProduct.categoryId || initialProduct.category.id;
+          console.log('ProductForm: determined Subcategory relationship', { categoryId, subcategoryId });
+        } else {
+          // If no parent, it's a main Category
+          categoryId = initialProduct.categoryId;
+          console.log('ProductForm: determined Main Category', { categoryId });
+        }
+      } else {
+        // Fallback if category object is missing (shouldn't happen with correct API)
+        categoryId = initialProduct.categoryId || '';
+        subcategoryId = initialProduct.subcategoryId || '';
+        console.log('ProductForm: fallback logic', { categoryId, subcategoryId });
+      }
+
+      const newState = {
         ...defaultProduct,
         ...initialProduct,
+        categoryId: categoryId, // Ensure these overwrite initialProduct values
+        subcategoryId: subcategoryId,
         visibleTo: initialProduct.visibleTo || [],
         colors: initialProduct.colors || [],
         gst: initialProduct.gst || '',
@@ -60,11 +87,20 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
         warranty: initialProduct.warranty || '',
         isActive: initialProduct.isActive !== false,
         unitType: initialProduct.unitType || 'Per Sheet',
-      });
+      };
+
+      console.log('ProductForm: setting new state', newState);
+      setFormProduct(newState);
+
       // Deduplicate existing images by filename (last part of URL)
       const uniqueFilenames = new Set();
       const uniqueImages = [];
-      (initialProduct.imageUrls || []).forEach(url => {
+      const sourceImages = initialProduct.imageUrls && initialProduct.imageUrls.length > 0
+        ? initialProduct.imageUrls
+        : (initialProduct.images || []);
+
+      sourceImages.forEach(url => {
+        if (!url) return;
         const filename = url.split('/').pop();
         if (filename && !uniqueFilenames.has(filename)) {
           uniqueFilenames.add(filename);

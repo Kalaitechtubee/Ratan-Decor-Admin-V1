@@ -50,7 +50,7 @@ apiClient.interceptors.response.use(
         apiClient.defaults.headers.Authorization = `Bearer ${newToken}`;
       }
     }
-    
+
     // Also check if response contains a token refresh (legacy support)
     const tokenUpdatedFromData = updateTokenFromData(response.data);
     if (tokenUpdatedFromData) {
@@ -59,7 +59,7 @@ apiClient.interceptors.response.use(
         apiClient.defaults.headers.Authorization = `Bearer ${newToken}`;
       }
     }
-    
+
     if (import.meta.env.DEV) {
       console.log('API Response:', {
         status: response.status,
@@ -78,21 +78,21 @@ apiClient.interceptors.response.use(
       data: error.response?.data,
       url: error.config?.url,
     };
-    
+
     // Handle 401 errors with token refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
         console.log('EnquiryApi: Received 401, attempting token refresh...');
         const refreshResult = await refreshAccessToken(API_URL.replace('/api', ''));
-        
+
         if (refreshResult.success && refreshResult.token) {
           console.log('EnquiryApi: Token refreshed, retrying original request');
           apiClient.defaults.headers.Authorization = `Bearer ${refreshResult.token}`;
           originalRequest.headers.Authorization = `Bearer ${refreshResult.token}`;
           return apiClient(originalRequest);
         }
-        
+
         // No token received
         throw new Error('No access token received from refresh endpoint');
       } catch (refreshError) {
@@ -102,15 +102,15 @@ apiClient.interceptors.response.use(
         return Promise.reject(refreshError);
       }
     }
-    
+
     console.error('API Error:', errorDetails);
-    
+
     // If 401 and refresh failed, redirect to login
     if (error.response?.status === 401) {
       clearAuthData();
       redirectToLogin();
     }
-    
+
     return Promise.reject(new Error(errorDetails.message));
   }
 );
@@ -129,7 +129,7 @@ const getCurrentUserFromToken = () => {
 };
 
 const validateInput = (data, requiredFields, options = {}) => {
-  const { validateEmail, validRoles, validStatuses, validatePincode } = options;
+  const { validateEmail, validStatuses, validatePincode } = options;
   let inputData = { ...data };
   const missingFields = requiredFields.filter(
     (field) =>
@@ -154,10 +154,6 @@ const validateInput = (data, requiredFields, options = {}) => {
       throw new Error('Phone number must be between 10-15 digits');
     }
     inputData.phoneNo = cleanPhone;
-  }
-
-  if (validRoles && inputData.role && !validRoles.includes(inputData.role)) {
-    throw new Error(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
   }
 
   if (validStatuses && inputData.status && !validStatuses.includes(inputData.status)) {
@@ -185,7 +181,6 @@ const validateInput = (data, requiredFields, options = {}) => {
 
 export const createEnquiry = async (enquiryData) => {
   try {
-    const validRoles = ['Customer', 'Dealer', 'Architect', 'Admin', 'Manager', 'Sales', 'Support'];
     const validSources = ['Email', 'WhatsApp', 'Phone', 'VideoCall'];
     const currentUser = getCurrentUserFromToken();
 
@@ -223,7 +218,7 @@ export const createEnquiry = async (enquiryData) => {
         pincode: enquiryData.pincode || null,
       },
       ['name', 'email', 'phoneNo', 'state', 'city'],
-      { validateEmail: true, validRoles, validSources, validatePincode: true }
+      { validateEmail: true, validSources, validatePincode: true }
     );
 
     console.log('Creating enquiry with formatted data:', formattedData);
@@ -247,10 +242,9 @@ export const createEnquiry = async (enquiryData) => {
 export const getAllEnquiries = async ({ page = 1, limit = 10, search, status, source, userType, state, city, role, pincode, includeNotes = false }) => {
   try {
     const validStatuses = ['New', 'InProgress', 'Confirmed', 'Delivered', 'Rejected'];
-    const validRoles = ['Customer', 'Dealer', 'Architect', 'Admin', 'Manager', 'Sales', 'Support'];
     const validSources = ['Email', 'WhatsApp', 'Phone', 'VideoCall'];
 
-    validateInput({ page, limit, pincode }, ['page', 'limit'], { validStatuses, validRoles, validSources, validatePincode: true });
+    validateInput({ page, limit, pincode }, ['page', 'limit'], { validStatuses, validSources, validatePincode: true });
 
     const params = { page, limit, search, status, source, userType, state, city, role, pincode, includeNotes };
     const cleanParams = Object.fromEntries(
@@ -294,7 +288,6 @@ export const getEnquiryById = async (id, includeNotes = false) => {
 
 export const updateEnquiry = async (id, enquiryData) => {
   try {
-    const validRoles = ['Customer', 'Dealer', 'Architect', 'Admin', 'Manager', 'Sales', 'Support'];
     const validStatuses = ['New', 'InProgress', 'Confirmed', 'Delivered', 'Rejected'];
     const validSources = ['Email', 'WhatsApp', 'Phone', 'VideoCall'];
 
@@ -318,7 +311,7 @@ export const updateEnquiry = async (id, enquiryData) => {
         pincode: enquiryData.pincode || null, // New field
       },
       [], // No required fields for update - allow partial updates
-      { validateEmail: enquiryData.email ? true : false, validRoles, validStatuses, validSources, validatePincode: true }
+      { validateEmail: enquiryData.email ? true : false, validStatuses, validSources, validatePincode: true }
     );
 
     // Remove undefined values to avoid backend issues
@@ -347,7 +340,6 @@ export const updateEnquiry = async (id, enquiryData) => {
 export const updateEnquiryStatus = async (id, { status, notes, role, pincode }) => {
   try {
     const validStatuses = ['New', 'InProgress', 'Confirmed', 'Delivered', 'Rejected'];
-    const validRoles = ['Customer', 'Dealer', 'Architect', 'Admin', 'Manager', 'Sales', 'Support'];
 
     const formattedData = validateInput(
       {
@@ -358,7 +350,7 @@ export const updateEnquiryStatus = async (id, { status, notes, role, pincode }) 
         pincode: pincode || null, // New field
       },
       ['id', 'status'],
-      { validStatuses, validRoles, validatePincode: true }
+      { validStatuses, validatePincode: true }
     );
 
     const response = await apiClient.put(`/enquiries/${id}/status`, formattedData);
