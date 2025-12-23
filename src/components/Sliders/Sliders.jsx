@@ -422,7 +422,7 @@ const Sliders = ({ currentUser, onToast }) => {
               {/* Image Upload Section */}
               <div>
                 <label className="block mb-2 text-sm font-medium text-gray-700">
-                  Images (Up to 5 images)
+                  Image
                 </label>
                 <div
                   className={`p-6 rounded-lg border-2 border-dashed ${
@@ -451,7 +451,7 @@ const Sliders = ({ currentUser, onToast }) => {
                           onChange={handleFileSelect}
                         />
                       </label>
-                      <p className="mt-1 text-xs text-gray-500">PNG, JPG, GIF up to 10MB each (Max 5 images)</p>
+                      <p className="mt-1 text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
                     </div>
                   </div>
                 </div>
@@ -507,7 +507,7 @@ const Sliders = ({ currentUser, onToast }) => {
                 )}
 
                 <p className="mt-2 text-xs text-gray-500">
-                  Total images: {existingImages.length + selectedFiles.length} / 5
+                  Total images: {existingImages.length + selectedFiles.length}
                 </p>
               </div>
 
