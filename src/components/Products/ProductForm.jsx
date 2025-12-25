@@ -35,6 +35,10 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
   const [isDragOver, setIsDragOver] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Track initial mount to prevent race condition with subcategory clearing
+  const isInitialMountRef = React.useRef(true);
+  const pendingSubcategoryIdRef = React.useRef(null);
+
   // User type options including "All"
   const userTypeOptions = [
     { value: 'all', label: 'All Business Types' },
@@ -50,22 +54,32 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
       let subcategoryId = '';
 
       if (initialProduct.category) {
-        console.log('ProductForm: has category object', initialProduct.category);
-        if (initialProduct.category.parentId) {
-          // If it has a parent, the parent is the main Category, and this is the Subcategory
-          categoryId = initialProduct.category.parentId;
-          subcategoryId = initialProduct.categoryId || initialProduct.category.id;
-          console.log('ProductForm: determined Subcategory relationship', { categoryId, subcategoryId });
+        console.log('ProductForm: processing category object', initialProduct.category);
+        const cat = initialProduct.category;
+        const pId = cat.parentId || (cat.parent ? cat.parent.id : null);
+
+        if (pId) {
+          // It has a parent, so the parent is the main Category, and this is the Subcategory
+          categoryId = pId.toString();
+          subcategoryId = (initialProduct.categoryId || cat.id).toString();
+          console.log('ProductForm: identified Subcategory relationship', { categoryId, subcategoryId });
         } else {
           // If no parent, it's a main Category
-          categoryId = initialProduct.categoryId;
-          console.log('ProductForm: determined Main Category', { categoryId });
+          categoryId = (initialProduct.categoryId || cat.id).toString();
+          subcategoryId = '';
+          console.log('ProductForm: identified Main Category', { categoryId });
         }
       } else {
-        // Fallback if category object is missing (shouldn't happen with correct API)
-        categoryId = initialProduct.categoryId || '';
-        subcategoryId = initialProduct.subcategoryId || '';
+        // Fallback if category object is missing
+        categoryId = (initialProduct.categoryId || '').toString();
+        subcategoryId = (initialProduct.subcategoryId || '').toString();
         console.log('ProductForm: fallback logic', { categoryId, subcategoryId });
+      }
+
+      // Store the subcategoryId in ref to preserve it during category change effect
+      if (subcategoryId) {
+        pendingSubcategoryIdRef.current = subcategoryId;
+        console.log('ProductForm: stored pending subcategoryId in ref', subcategoryId);
       }
 
       const newState = {
@@ -73,8 +87,8 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
         ...initialProduct,
         categoryId: categoryId, // Ensure these overwrite initialProduct values
         subcategoryId: subcategoryId,
-        visibleTo: initialProduct.visibleTo || [],
-        colors: initialProduct.colors || [],
+        visibleTo: Array.isArray(initialProduct.visibleTo) ? initialProduct.visibleTo : [],
+        colors: Array.isArray(initialProduct.colors) ? initialProduct.colors : [],
         gst: initialProduct.gst || '',
         mrpPrice: initialProduct.mrpPrice || '',
         generalPrice: initialProduct.generalPrice || '',
@@ -109,18 +123,25 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
       });
       setExistingImages(uniqueImages);
     } else {
+      pendingSubcategoryIdRef.current = null;
       setFormProduct(defaultProduct);
       setExistingImages([]);
     }
     setSelectedFiles([]);
+    isInitialMountRef.current = false;
   }, [initialProduct]);
 
   useEffect(() => {
     if (formProduct.categoryId) {
+      // Load subcategories for the selected category
       loadSubcategories(formProduct.categoryId);
     } else {
       setSubcategories([]);
-      setFormProduct((prev) => ({ ...prev, subcategoryId: '' }));
+      // Only clear subcategoryId if we're NOT in edit mode initial setup
+      // and there's no pending subcategoryId to preserve
+      if (!pendingSubcategoryIdRef.current) {
+        setFormProduct((prev) => ({ ...prev, subcategoryId: '' }));
+      }
     }
   }, [formProduct.categoryId]);
 
@@ -128,7 +149,28 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
     try {
       const response = await getSubCategories(parentId);
       if (response.success) {
-        setSubcategories(response.subcategories || []);
+        const loadedSubcategories = response.subcategories || [];
+        setSubcategories(loadedSubcategories);
+
+        // Restore pending subcategoryId if it exists and is valid
+        if (pendingSubcategoryIdRef.current) {
+          const pendingId = pendingSubcategoryIdRef.current;
+          const exists = loadedSubcategories.some(
+            sub => sub.id.toString() === pendingId.toString()
+          );
+
+          if (exists) {
+            console.log('ProductForm: restoring subcategoryId from ref', pendingId);
+            setFormProduct(prev => ({
+              ...prev,
+              subcategoryId: pendingId
+            }));
+          } else {
+            console.log('ProductForm: pending subcategoryId not found in loaded subcategories', pendingId);
+          }
+          // Clear the ref after attempting to restore
+          pendingSubcategoryIdRef.current = null;
+        }
       } else {
         throw new Error('Failed to load subcategories');
       }
@@ -143,6 +185,8 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
 
   const handleCategoryChange = (e) => {
     const value = e.target.value;
+    // Clear pending subcategory since user is manually changing category
+    pendingSubcategoryIdRef.current = null;
     setFormProduct((prev) => ({ ...prev, categoryId: value, subcategoryId: '' }));
   };
 
@@ -157,17 +201,18 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
 
   const toggleUserTypeSelection = (userType) => {
     setFormProduct(prev => {
+      const currentVisibleTo = Array.isArray(prev.visibleTo) ? prev.visibleTo : [];
       let newVisibleTo;
 
       if (userType === 'all') {
-        newVisibleTo = prev.visibleTo.includes('all') ? [] : ['all'];
-      } else if (prev.visibleTo.includes('all')) {
+        newVisibleTo = currentVisibleTo.includes('all') ? [] : ['all'];
+      } else if (currentVisibleTo.includes('all')) {
         newVisibleTo = [userType];
       } else {
-        if (prev.visibleTo.includes(userType)) {
-          newVisibleTo = prev.visibleTo.filter(item => item !== userType);
+        if (currentVisibleTo.includes(userType)) {
+          newVisibleTo = currentVisibleTo.filter(item => item !== userType);
         } else {
-          newVisibleTo = [...prev.visibleTo, userType];
+          newVisibleTo = [...currentVisibleTo, userType];
         }
       }
 
@@ -260,10 +305,12 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
   };
 
   const getSelectedUserTypesLabel = () => {
-    if (formProduct.visibleTo.length === 0) return "Select Business Types";
-    if (formProduct.visibleTo.includes('all')) return "All Business Types";
-    return formProduct.visibleTo
+    const visibleTo = Array.isArray(formProduct.visibleTo) ? formProduct.visibleTo : [];
+    if (visibleTo.length === 0) return "Select Business Types";
+    if (visibleTo.includes('all')) return "All Business Types";
+    return visibleTo
       .map(type => userTypeOptions.find(opt => opt.value === type)?.label)
+      .filter(label => label)
       .join(', ');
   };
 
@@ -447,9 +494,9 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
                 className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center"
                 onClick={() => toggleUserTypeSelection(option.value)}
               >
-                <div className={`w-5 h-5 border rounded mr-2 flex items-center justify-center ${formProduct.visibleTo.includes(option.value) ? 'bg-primary border-primary' : 'border-gray-300'
+                <div className={`w-5 h-5 border rounded mr-2 flex items-center justify-center ${(Array.isArray(formProduct.visibleTo) && formProduct.visibleTo.includes(option.value)) ? 'bg-primary border-primary' : 'border-gray-300'
                   }`}>
-                  {formProduct.visibleTo.includes(option.value) && (
+                  {Array.isArray(formProduct.visibleTo) && formProduct.visibleTo.includes(option.value) && (
                     <Check size={14} className="text-white" />
                   )}
                 </div>
@@ -580,7 +627,7 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
         <input
           type="text"
           placeholder="Enter colors (comma-separated)"
-          value={formProduct.colors.join(', ')}
+          value={(Array.isArray(formProduct.colors) ? formProduct.colors : []).join(', ')}
           onChange={handleColorsChange}
           className="px-3 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
         />

@@ -56,6 +56,11 @@ const apiFetch = async (url, options = {}) => {
     ...options.headers,
   };
 
+  // Set Content-Type for JSON bodies (when body is a string from JSON.stringify)
+  if (!isFormData && options.body && typeof options.body === 'string' && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   // Remove Content-Type if it's FormData (browser will set it with boundary)
   if (isFormData && headers['Content-Type']) {
     delete headers['Content-Type'];

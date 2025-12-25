@@ -26,7 +26,7 @@ const ViewEnquiryModal = ({
   const [productLoading, setProductLoading] = useState(false);
   const [internalNotes, setInternalNotes] = useState([]);
   const [loadingNotes, setLoadingNotes] = useState(false);
-  
+
   const user = useMemo(() => getCurrentUser(), []);
 
   useEffect(() => {
@@ -36,7 +36,7 @@ const ViewEnquiryModal = ({
         try {
           const response = await getEnquiryById(enquiryId);
           setEnquiry(response.data);
-          
+
           // Fetch product details if needed
           if (response.data.productId && !response.data.product) {
             setProductLoading(true);
@@ -51,7 +51,7 @@ const ViewEnquiryModal = ({
               setProductLoading(false);
             }
           }
-          
+
           // Fetch internal notes
           setLoadingNotes(true);
           try {
@@ -125,11 +125,11 @@ const ViewEnquiryModal = ({
   // Helper function to render product details
   const renderProductDetails = () => {
     const product = productDetails || enquiry.product;
-    
+
     if (!product) {
       return <p><span className="font-medium">Product ID:</span> {enquiry.productId}</p>;
     }
-    
+
     return (
       <>
         <p><span className="font-medium">Product Name:</span> {product.name || '-'}</p>
@@ -143,7 +143,7 @@ const ViewEnquiryModal = ({
         }</p>
         {product.size && <p><span className="font-medium">Size:</span> {product.size}</p>}
         {product.thickness && <p><span className="font-medium">Thickness:</span> {product.thickness}</p>}
-        {product.colors?.length > 0 && (
+        {Array.isArray(product.colors) && product.colors.length > 0 && (
           <p><span className="font-medium">Colors:</span> {product.colors.join(', ')}</p>
         )}
         {user?.role === 'Architect' && product.architectPrice && (

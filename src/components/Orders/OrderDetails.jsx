@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { Package } from 'lucide-react';
+import {
+  Package,
+  ShoppingBag,
+  Clock,
+  Truck,
+  CheckCircle,
+  AlertCircle
+} from 'lucide-react';
 import StatusBadge from '../Common/StatusBadge';
 import { getProductImageUrl } from '../../utils/imageUtils';
 
@@ -63,7 +70,7 @@ const OrderDetails = ({ order, onUpdate, onClose }) => {
     if (order.user) {
       return {
         name: order.user.name || 'N/A',
-        phone: order.user.mobile || 'N/A', 
+        phone: order.user.mobile || 'N/A',
         email: order.user.email || 'N/A',
         address: order.user.address || 'N/A',
         city: order.user.city || 'N/A',
@@ -74,13 +81,13 @@ const OrderDetails = ({ order, onUpdate, onClose }) => {
         userId: order.user.id || order.userId
       };
     }
-    
+
     // Fallback to delivery address if user info not available
     return {
       name: order.deliveryAddress?.data?.name || 'N/A',
       phone: order.deliveryAddress?.data?.phone || 'N/A',
       email: 'N/A',
-      address: order.deliveryAddress?.data?.address || 'N/A', 
+      address: order.deliveryAddress?.data?.address || 'N/A',
       city: order.deliveryAddress?.data?.city || 'N/A',
       state: order.deliveryAddress?.data?.state || 'N/A',
       country: order.deliveryAddress?.data?.country || 'N/A',
@@ -97,7 +104,7 @@ const OrderDetails = ({ order, onUpdate, onClose }) => {
         name: order.deliveryAddress.data.name || 'N/A',
         phone: order.deliveryAddress.data.phone || 'N/A',
         address: order.deliveryAddress.data.address || 'N/A',
-        city: order.deliveryAddress.data.city || 'N/A', 
+        city: order.deliveryAddress.data.city || 'N/A',
         state: order.deliveryAddress.data.state || 'N/A',
         country: order.deliveryAddress.data.country || 'N/A',
         pincode: order.deliveryAddress.data.pincode || 'N/A',
@@ -105,10 +112,10 @@ const OrderDetails = ({ order, onUpdate, onClose }) => {
         source: order.deliveryAddress.data.source || 'N/A'
       };
     }
-    
+
     return {
       name: 'N/A',
-      phone: 'N/A', 
+      phone: 'N/A',
       address: 'N/A',
       city: 'N/A',
       state: 'N/A',
@@ -122,6 +129,33 @@ const OrderDetails = ({ order, onUpdate, onClose }) => {
   const userInfo = getUserInfo();
   const deliveryInfo = getDeliveryInfo();
 
+  const getTrackingSteps = (status) => {
+    const steps = [
+      { id: 1, name: 'Order Placed', icon: ShoppingBag },
+      { id: 2, name: 'Pending', icon: Clock },
+      { id: 3, name: 'Processing', icon: Package },
+      { id: 4, name: 'Shipped', icon: Truck },
+      { id: 5, name: 'Completed', icon: CheckCircle },
+    ];
+    const s = (status || '').toLowerCase();
+    const statusMap = { pending: 2, processing: 3, shipped: 4, completed: 5 };
+    const currentStep = statusMap[s] || 1;
+
+    return steps.map((step) => {
+      let stepStatus = 'pending';
+      if (s === 'completed') {
+        stepStatus = 'completed';
+      } else if (step.id < currentStep) {
+        stepStatus = 'completed';
+      } else if (step.id === currentStep) {
+        stepStatus = 'current';
+      }
+      return { ...step, status: stepStatus };
+    });
+  };
+
+  const trackingSteps = getTrackingSteps(order.status);
+
   return (
     <div className="space-y-6 font-sans bg-gray-50 p-6 rounded-xl shadow-lg max-w-4xl mx-auto">
       {/* Error Message */}
@@ -133,6 +167,47 @@ const OrderDetails = ({ order, onUpdate, onClose }) => {
           {error}
         </div>
       )}
+
+      {/* Order Tracking Timeline */}
+      <div className='bg-white p-6 rounded-lg shadow-sm overflow-x-auto'>
+        <h4 className='text-lg font-semibold text-gray-800 mb-6'>Order Progress</h4>
+        <div className='flex items-center justify-between min-w-[600px]'>
+          {trackingSteps.map((step, index) => (
+            <React.Fragment key={step.id}>
+              <div className='flex flex-col items-center relative flex-1'>
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${step.status === 'completed'
+                    ? 'bg-green-500 border-green-500 text-white'
+                    : step.status === 'current'
+                      ? 'bg-blue-100 border-blue-500 text-blue-600'
+                      : 'bg-white border-gray-200 text-gray-400'
+                    }`}
+                >
+                  <step.icon size={20} className={step.status === 'current' ? 'animate-pulse' : ''} />
+                </div>
+                <div className='mt-2 text-center'>
+                  <p
+                    className={`text-xs font-semibold ${step.status === 'completed'
+                      ? 'text-green-600'
+                      : step.status === 'current'
+                        ? 'text-blue-600'
+                        : 'text-gray-500'
+                      }`}
+                  >
+                    {step.name}
+                  </p>
+                </div>
+              </div>
+              {index < trackingSteps.length - 1 && (
+                <div
+                  className={`h-0.5 flex-1 mx-2 ${step.status === 'completed' ? 'bg-green-500' : 'bg-gray-200'
+                    }`}
+                ></div>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
 
       {/* User Information */}
       <div className="bg-white p-5 rounded-lg shadow-sm">
@@ -164,7 +239,7 @@ const OrderDetails = ({ order, onUpdate, onClose }) => {
         {/* Billing Address - From User Profile */}
         <div className="bg-white p-5 rounded-lg shadow-sm">
           <h4 className="text-lg font-semibold text-gray-800 mb-3">
-            Billing Address 
+            Billing Address
             <span className="text-xs text-blue-600 font-normal ml-2">(User Profile)</span>
           </h4>
           <div className="text-sm text-gray-600 space-y-1">
@@ -178,15 +253,15 @@ const OrderDetails = ({ order, onUpdate, onClose }) => {
             <div><span className="font-medium">Email:</span> {userInfo.email}</div>
           </div>
         </div>
-        
+
         {/* Delivery Address - From Order Delivery Address */}
         <div className="bg-white p-5 rounded-lg shadow-sm">
           <h4 className="text-lg font-semibold text-gray-800 mb-3">
             Delivery Address
             <span className="text-xs text-green-600 font-normal ml-2">
-              ({deliveryInfo.type === 'default' ? 'Default' : 
-                deliveryInfo.type === 'shipping' ? 'Shipping Address' : 
-                deliveryInfo.type === 'new' ? 'New Address' : 'Custom'})
+              ({deliveryInfo.type === 'default' ? 'Default' :
+                deliveryInfo.type === 'shipping' ? 'Shipping Address' :
+                  deliveryInfo.type === 'new' ? 'New Address' : 'Custom'})
             </span>
           </h4>
           <div className="text-sm text-gray-600 space-y-1">
@@ -198,20 +273,20 @@ const OrderDetails = ({ order, onUpdate, onClose }) => {
             <div><span className="font-medium">Pincode:</span> {deliveryInfo.pincode}</div>
             <div><span className="font-medium">Phone:</span> {deliveryInfo.phone}</div>
             {deliveryInfo.source && deliveryInfo.source !== 'N/A' && (
-              <div><span className="font-medium">Source:</span> 
+              <div><span className="font-medium">Source:</span>
                 <span className="text-xs bg-gray-100 px-2 py-1 rounded ml-1">{deliveryInfo.source}</span>
               </div>
             )}
           </div>
-          
+
           {/* Show if addresses are the same */}
-          {(userInfo.address === deliveryInfo.address && 
-            userInfo.city === deliveryInfo.city && 
+          {(userInfo.address === deliveryInfo.address &&
+            userInfo.city === deliveryInfo.city &&
             userInfo.pincode === deliveryInfo.pincode) && (
-            <div className="mt-2 p-2 bg-blue-50 text-blue-700 text-xs rounded">
-              Same as billing address
-            </div>
-          )}
+              <div className="mt-2 p-2 bg-blue-50 text-blue-700 text-xs rounded">
+                Same as billing address
+              </div>
+            )}
         </div>
       </div>
 

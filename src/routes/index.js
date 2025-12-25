@@ -11,7 +11,9 @@ import VideoCallAppointmentsList from '../components/VideoCallAppointmentsList/V
 import StaffRegistration from '../components/Staff/StaffRegistration';
 import StaffList from '../components/Staff/StaffList';
 import ContactsList from '../components/Contact/ContactsList';
+
 import Sliders from '../components/Sliders/Sliders';
+import Profile from '../components/Profile/Profile';
 
 // Public routes
 export const publicRoutes = [
@@ -144,6 +146,14 @@ export const protectedRoutes = [
     icon: 'sliders',
     isPublic: false,
     requiredAccess: 'requireSlidersAccess',
+  },
+  {
+    path: '/profile',
+    element: Profile,
+    title: 'My Profile',
+    icon: 'users',
+    isPublic: false,
+    requiredAccess: null, // Basic access for all authenticated users
   },
 ];
 

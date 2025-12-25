@@ -112,7 +112,7 @@ const ProductDetails = ({ product, getImageUrl, formatRating }) => {
           <div className="space-y-2">
             <div><strong>Category:</strong> {product.category?.parent?.name || product.category?.name || 'No category'}</div>
             <div><strong>Subcategory:</strong> {product.category?.parent ? product.category?.name : 'No subcategory'}</div>
-            <div><strong>User Type:</strong> {product.visibleTo?.join(', ') || 'All'}</div>
+            <div><strong>User Type:</strong> {(Array.isArray(product.visibleTo) ? product.visibleTo : []).join(', ') || 'All'}</div>
           </div>
         </InfoCard>
 
@@ -121,7 +121,7 @@ const ProductDetails = ({ product, getImageUrl, formatRating }) => {
           <div className="space-y-2">
             <div><strong>Brand Name:</strong> {product.brandName || 'None'}</div>
             <div><strong>Design Number:</strong> {product.designNumber || 'None'}</div>
-            {product.colors?.length > 0 && (
+            {Array.isArray(product.colors) && product.colors.length > 0 && (
               <div>
                 <strong>Colors:</strong>
                 <div className="flex flex-wrap gap-1 mt-1">

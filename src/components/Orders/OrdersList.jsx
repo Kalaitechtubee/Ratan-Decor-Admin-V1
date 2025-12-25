@@ -457,8 +457,8 @@ const OrdersList = () => {
                 >
                   <option value="">All Payment Status</option>
                   <option value="Awaiting">Awaiting</option>
-                  <option value="Approved">Approved</option>
-                  <option value="Rejected">Rejected</option>
+                  <option value="Received">Received</option>
+                  <option value="Not Received">Not Received</option>
                 </select>
               </div>
               <div>

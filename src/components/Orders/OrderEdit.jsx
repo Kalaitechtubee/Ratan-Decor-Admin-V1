@@ -23,7 +23,7 @@ const OrderEdit = ({ order, userRole, onUpdate, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validation
     if (!formData.status || !formData.paymentStatus) {
       setError('Status and Payment Status are required');
@@ -37,7 +37,7 @@ const OrderEdit = ({ order, userRole, onUpdate, onClose }) => {
     try {
       await adminOrderApi.updateOrder(order.id, formData);
       setSuccess(true);
-      
+
       // Wait a moment to show success message, then close
       setTimeout(async () => {
         await onUpdate(order.id, formData);
@@ -141,8 +141,8 @@ const OrderEdit = ({ order, userRole, onUpdate, onClose }) => {
         >
           <option value="">Select Payment Status</option>
           <option value="Awaiting">Awaiting</option>
-          <option value="Approved">Approved</option>
-          <option value="Rejected">Rejected</option>
+          <option value="Received">Received</option>
+          <option value="Not Received">Not Received</option>
         </select>
       </div>
 

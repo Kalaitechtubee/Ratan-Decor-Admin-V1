@@ -1,8 +1,11 @@
 // src/components/Layout/TopBar.jsx
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Bell, User, Menu, LogOut } from 'lucide-react';
 
 const TopBar = ({ userRole, onMobileMenuToggle, currentUser, onLogout }) => {
+  const navigate = useNavigate();
+
   const getRoleDisplay = (role) => {
     return role.charAt(0).toUpperCase() + role.slice(1);
   };
@@ -55,7 +58,9 @@ const TopBar = ({ userRole, onMobileMenuToggle, currentUser, onLogout }) => {
               <div className="text-sm font-medium text-gray-700">{currentUser?.name || 'Admin User'}</div>
               <div className="text-xs text-gray-500">{getRoleDisplay(userRole)}</div>
             </div>
-            <button className="w-8 h-8 bg-primary rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
+            <button
+              onClick={() => navigate('/profile')}
+              className="w-8 h-8 bg-primary rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
               <User size={16} className="text-white" />
             </button>
             <button
