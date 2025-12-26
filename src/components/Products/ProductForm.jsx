@@ -87,8 +87,32 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
         ...initialProduct,
         categoryId: categoryId, // Ensure these overwrite initialProduct values
         subcategoryId: subcategoryId,
-        visibleTo: Array.isArray(initialProduct.visibleTo) ? initialProduct.visibleTo : [],
-        colors: Array.isArray(initialProduct.colors) ? initialProduct.colors : [],
+        visibleTo: (() => {
+          try {
+            if (Array.isArray(initialProduct.visibleTo)) return initialProduct.visibleTo;
+            if (typeof initialProduct.visibleTo === 'string') {
+              const parsed = JSON.parse(initialProduct.visibleTo);
+              return Array.isArray(parsed) ? parsed : [];
+            }
+            return [];
+          } catch (e) {
+            console.error('Error parsing visibleTo:', e);
+            return [];
+          }
+        })(),
+        colors: (() => {
+          try {
+            if (Array.isArray(initialProduct.colors)) return initialProduct.colors;
+            if (typeof initialProduct.colors === 'string') {
+              const parsed = JSON.parse(initialProduct.colors);
+              return Array.isArray(parsed) ? parsed : [];
+            }
+            return [];
+          } catch (e) {
+            console.error('Error parsing colors:', e);
+            return [];
+          }
+        })(),
         gst: initialProduct.gst || '',
         mrpPrice: initialProduct.mrpPrice || '',
         generalPrice: initialProduct.generalPrice || '',
