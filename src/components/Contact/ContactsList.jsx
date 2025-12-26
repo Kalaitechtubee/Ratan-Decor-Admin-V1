@@ -1,9 +1,9 @@
-// src/components/Contact/ContactsList.jsx (updated: aligned permission check and error message)
+// src/components/Contact/ContactsList.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Search, ArrowUpDown, ChevronLeft, ChevronRight, Mail, Phone, MapPin, Calendar, MessageSquare, ArrowLeft, User } from 'lucide-react';
 import { getAllContacts, getContactById } from '../../services/Api';
-import { moduleAccess } from '../../utils/roleAccess'; // Import for consistent role check
+import { moduleAccess } from '../../utils/roleAccess';
 
 const ContactsList = ({ currentUser, onToast }) => {
   const { id } = useParams();
@@ -22,7 +22,6 @@ const ContactsList = ({ currentUser, onToast }) => {
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('DESC');
 
-  // Check if user has permission (Fixed: Use requireContactsAccess to match table/backend)
   const hasPermission = moduleAccess.requireContactsAccess(currentUser);
 
   const lastFetchedParams = useRef({ page: 0, search: '', sortBy: '', sortOrder: '' });
@@ -64,12 +63,10 @@ const ContactsList = ({ currentUser, onToast }) => {
         limit: response.pagination?.limit || 10,
       });
     } catch (err) {
-      // Handle specific auth errors
       if (err.message?.includes('token') || err.status === 401) {
         setError('Access denied. No valid token provided.');
         onToast('Session expired. Please login again.', 'error');
-        // Redirect to login if token invalid
-        localStorage.removeItem('token'); // Clear invalid token
+        localStorage.removeItem('token');
         navigate('/login');
         return;
       }
@@ -91,11 +88,10 @@ const ContactsList = ({ currentUser, onToast }) => {
       const response = await getContactById(contactId);
       setSelectedContact(response.contact);
     } catch (err) {
-      // Handle specific auth errors
       if (err.message?.includes('token') || err.status === 401) {
         setError('Access denied. No valid token provided.');
         onToast('Session expired. Please login again.', 'error');
-        localStorage.removeItem('token'); // Clear invalid token
+        localStorage.removeItem('token');
         navigate('/login');
         return;
       }
@@ -127,6 +123,12 @@ const ContactsList = ({ currentUser, onToast }) => {
       setSortOrder('ASC');
     }
     setPagination((prev) => ({ ...prev, currentPage: 1 }));
+  };
+
+  // Handle back to list
+  const handleBackToList = () => {
+    setSelectedContact(null);
+    navigate('/contacts');
   };
 
   // List view fetch
@@ -191,24 +193,24 @@ const ContactsList = ({ currentUser, onToast }) => {
   // Render single contact details
   if (selectedContact) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4 sm:p-6">
         <div className="max-w-4xl mx-auto">
           <div className="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-100">
             {/* Header with gradient */}
-            <div className="bg-gradient-to-r from-[#ff4747] to-[#ff6b6b] p-6">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-4">
-                  <div className="w-16 h-16 rounded-full bg-white bg-opacity-20 backdrop-blur-sm flex items-center justify-center">
+            <div className="bg-gradient-to-r from-[#ff4747] to-[#ff6b6b] p-6 sm:p-8">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex items-center space-x-3 sm:space-x-4">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white bg-opacity-20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
                     <User className="text-white" size={32} />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-white">Contact Details</h2>
-                    <p className="text-white text-opacity-90 text-sm mt-1">View full contact information</p>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-white">Contact Details</h2>
+                    <p className="text-white text-opacity-90 text-sm sm:text-base mt-1">View complete contact information</p>
                   </div>
                 </div>
                 <button
-                  onClick={() => navigate('/contacts')}
-                  className="flex items-center space-x-2 px-4 py-2 bg-white bg-opacity-20 backdrop-blur-sm text-white rounded-xl hover:bg-opacity-30 transition-all duration-200"
+                  onClick={handleBackToList}
+                  className="w-full sm:w-auto flex items-center justify-center space-x-2 px-4 sm:px-6 py-2 sm:py-3 bg-white bg-opacity-20 backdrop-blur-sm text-white rounded-xl hover:bg-opacity-30 transition-all duration-200 font-medium"
                 >
                   <ArrowLeft size={18} />
                   <span>Back to List</span>
@@ -217,75 +219,75 @@ const ContactsList = ({ currentUser, onToast }) => {
             </div>
 
             {/* Content */}
-            <div className="p-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-6">
                 {/* Name */}
                 <div className="group">
-                  <div className="flex items-start space-x-3 p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-                    <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-100 transition-colors">
-                      <User className="text-blue-600" size={20} />
+                  <div className="flex items-center space-x-3 p-3 sm:p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                    <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-100 transition-colors">
+                      <User className="text-blue-600" size={18} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Full Name</p>
-                      <p className="text-gray-900 font-semibold text-lg">{selectedContact.name}</p>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Full Name</p>
+                      <p className="text-sm text-gray-900 font-semibold break-words">{selectedContact.name}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Email */}
                 <div className="group">
-                  <div className="flex items-start space-x-3 p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-                    <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0 group-hover:bg-green-100 transition-colors">
-                      <Mail className="text-green-600" size={20} />
+                  <div className="flex items-center space-x-3 p-3 sm:p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                    <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0 group-hover:bg-green-100 transition-colors">
+                      <Mail className="text-green-600" size={18} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Email Address</p>
-                      <p className="text-gray-900 font-medium truncate">{selectedContact.email}</p>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Email Address</p>
+                      <p className="text-sm text-gray-900 font-medium break-all">{selectedContact.email}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Phone */}
                 <div className="group">
-                  <div className="flex items-start space-x-3 p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-                    <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0 group-hover:bg-purple-100 transition-colors">
-                      <Phone className="text-purple-600" size={20} />
+                  <div className="flex items-center space-x-3 p-3 sm:p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                    <div className="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0 group-hover:bg-purple-100 transition-colors">
+                      <Phone className="text-purple-600" size={18} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Phone Number</p>
-                      <p className="text-gray-900 font-medium">{selectedContact.phoneNumber}</p>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Phone Number</p>
+                      <p className="text-sm text-gray-900 font-medium">{selectedContact.phoneNumber}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Location */}
                 <div className="group">
-                  <div className="flex items-start space-x-3 p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-                    <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0 group-hover:bg-amber-100 transition-colors">
-                      <MapPin className="text-amber-600" size={20} />
+                  <div className="flex items-center space-x-3 p-3 sm:p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                    <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0 group-hover:bg-amber-100 transition-colors">
+                      <MapPin className="text-amber-600" size={18} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Location</p>
-                      <p className="text-gray-900 font-medium">{selectedContact.location}</p>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Location</p>
+                      <p className="text-sm text-gray-900 font-medium break-words">{selectedContact.location}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Submitted Date */}
                 <div className="group md:col-span-2">
-                  <div className="flex items-start space-x-3 p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-                    <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0 group-hover:bg-red-100 transition-colors">
-                      <Calendar className="text-[#ff4747]" size={20} />
+                  <div className="flex items-center space-x-3 p-3 sm:p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                    <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0 group-hover:bg-red-100 transition-colors">
+                      <Calendar className="text-[#ff4747]" size={18} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Submitted On</p>
-                      <p className="text-gray-900 font-medium">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Submitted On</p>
+                      <p className="text-sm text-gray-900 font-medium">
                         {new Date(selectedContact.createdAt).toLocaleDateString('en-US', { 
                           year: 'numeric', 
-                          month: 'long', 
+                          month: 'short', 
                           day: 'numeric',
-                          hour: 'numeric',
-                          minute: 'numeric'
+                          hour: '2-digit',
+                          minute: '2-digit'
                         })}
                       </p>
                     </div>
@@ -295,12 +297,12 @@ const ContactsList = ({ currentUser, onToast }) => {
 
               {/* Message */}
               <div className="group">
-                <div className="p-6 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200">
+                <div className="p-4 sm:p-5 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200">
                   <div className="flex items-center space-x-2 mb-3">
-                    <MessageSquare className="text-[#ff4747]" size={20} />
-                    <p className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Message</p>
+                    <MessageSquare className="text-[#ff4747] flex-shrink-0" size={18} />
+                    <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Message</p>
                   </div>
-                  <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+                  <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap break-words">
                     {selectedContact.message}
                   </p>
                 </div>
@@ -314,25 +316,25 @@ const ContactsList = ({ currentUser, onToast }) => {
 
   // Render contacts list
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4 sm:p-6">
       <div className="max-w-7xl mx-auto">
         <div className="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-100">
           {/* Header */}
-          <div className="bg-gradient-to-r from-[#ff4747] to-[#ff6b6b] p-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 rounded-xl bg-white bg-opacity-20 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-gradient-to-r from-[#ff4747] to-[#ff6b6b] p-6 sm:p-8">
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <div className="w-12 h-12 rounded-xl bg-white bg-opacity-20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
                 <Mail className="text-white" size={24} />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">Contact Submissions</h2>
-                <p className="text-white text-opacity-90 text-sm mt-1">
+                <h2 className="text-2xl sm:text-3xl font-bold text-white">Contact Submissions</h2>
+                <p className="text-white text-opacity-90 text-sm sm:text-base mt-1">
                   {pagination.totalItems} total contact{pagination.totalItems !== 1 ? 's' : ''}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {/* Search Bar */}
             <div className="mb-6">
               <div className="relative">
@@ -342,7 +344,7 @@ const ContactsList = ({ currentUser, onToast }) => {
                   value={search}
                   onChange={handleSearch}
                   placeholder="Search by name, email, phone, or location..."
-                  className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#ff4747] focus:border-transparent transition-all bg-gray-50 hover:bg-white"
+                  className="w-full pl-12 pr-4 py-3 sm:py-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#ff4747] focus:border-transparent transition-all bg-gray-50 hover:bg-white text-sm sm:text-base"
                 />
               </div>
             </div>
@@ -363,7 +365,7 @@ const ContactsList = ({ currentUser, onToast }) => {
                       <th
                         key={field}
                         onClick={() => handleSort(field)}
-                        className="group px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                        className="group px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                       >
                         <div className="flex items-center space-x-1">
                           <span>{label}</span>
@@ -392,33 +394,33 @@ const ContactsList = ({ currentUser, onToast }) => {
                         className="hover:bg-red-50 cursor-pointer transition-colors group"
                         style={{ animationDelay: `${index * 50}ms` }}
                       >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#ff4747] to-[#ff6b6b] flex items-center justify-center text-white text-sm font-semibold mr-3">
+                        <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#ff4747] to-[#ff6b6b] flex items-center justify-center text-white text-xs sm:text-sm font-semibold flex-shrink-0">
                               {contact.name.charAt(0).toUpperCase()}
                             </div>
-                            <span className="text-sm font-medium text-gray-900 group-hover:text-[#ff4747] transition-colors">
+                            <span className="text-xs sm:text-sm font-medium text-gray-900 group-hover:text-[#ff4747] transition-colors truncate">
                               {contact.name}
                             </span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-600 truncate">
                           {contact.email}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-600">
                           {contact.phoneNumber}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-600 truncate">
                           {contact.location}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600 max-w-xs">
+                        <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 max-w-xs">
                           <div className="truncate">
                             {contact.message.length > 50
                               ? `${contact.message.substring(0, 50)}...`
                               : contact.message}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-600">
                           {new Date(contact.createdAt).toLocaleDateString('en-US', { 
                             year: 'numeric', 
                             month: 'short', 
@@ -434,8 +436,8 @@ const ContactsList = ({ currentUser, onToast }) => {
                           <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
                             <Mail className="text-gray-400" size={32} />
                           </div>
-                          <p className="text-gray-500 font-medium">No contacts found</p>
-                          <p className="text-gray-400 text-sm mt-1">Try adjusting your search criteria</p>
+                          <p className="text-gray-500 font-medium text-sm sm:text-base">No contacts found</p>
+                          <p className="text-gray-400 text-xs sm:text-sm mt-1">Try adjusting your search criteria</p>
                         </div>
                       </td>
                     </tr>
@@ -447,29 +449,29 @@ const ContactsList = ({ currentUser, onToast }) => {
             {/* Pagination */}
             {pagination.totalPages > 1 && (
               <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div className="text-sm text-gray-600 font-medium">
+                <div className="text-xs sm:text-sm text-gray-600 font-medium text-center sm:text-left">
                   Showing <span className="text-[#ff4747] font-semibold">{contacts.length}</span> of{' '}
                   <span className="text-[#ff4747] font-semibold">{pagination.totalItems}</span> contacts
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-2 flex-wrap justify-center">
                   <button
                     onClick={() => handlePageChange(pagination.currentPage - 1)}
                     disabled={pagination.currentPage === 1}
-                    className="flex items-center space-x-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-200 transition-colors font-medium"
+                    className="flex items-center gap-1 px-3 sm:px-4 py-2 bg-gray-100 text-gray-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-200 transition-colors font-medium text-xs sm:text-sm"
                   >
-                    <ChevronLeft size={18} />
+                    <ChevronLeft size={16} />
                     <span>Previous</span>
                   </button>
-                  <div className="px-4 py-2 bg-gradient-to-r from-[#ff4747] to-[#ff6b6b] text-white rounded-lg font-semibold">
+                  <div className="px-3 sm:px-4 py-2 bg-gradient-to-r from-[#ff4747] to-[#ff6b6b] text-white rounded-lg font-semibold text-xs sm:text-sm whitespace-nowrap">
                     {pagination.currentPage} / {pagination.totalPages}
                   </div>
                   <button
                     onClick={() => handlePageChange(pagination.currentPage + 1)}
                     disabled={pagination.currentPage === pagination.totalPages}
-                    className="flex items-center space-x-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-200 transition-colors font-medium"
+                    className="flex items-center gap-1 px-3 sm:px-4 py-2 bg-gray-100 text-gray-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-200 transition-colors font-medium text-xs sm:text-sm"
                   >
                     <span>Next</span>
-                    <ChevronRight size={18} />
+                    <ChevronRight size={16} />
                   </button>
                 </div>
               </div>
