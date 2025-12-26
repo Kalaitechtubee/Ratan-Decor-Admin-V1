@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { debounce } from 'lodash';
 import { toast } from 'react-toastify';
 import {
@@ -29,7 +30,10 @@ import {
   Shield,
   MoreVertical,
   Loader2,
-  X
+  X,
+  MapPin,
+  Globe,
+  Plus
 } from 'lucide-react';
 import {
   getAllUsers,
@@ -38,15 +42,21 @@ import {
   getPendingUsers,
   updateUser,
   deleteUser,
-  getUserOrderHistory
+  getUserOrderHistory,
+  getUserTypes
 } from '../../services/Api';
 
-// Allowed role/status options shown in filters and edit forms (customer view only)
+// Allowed role/status options shown in filters and edit forms
 const roleOptions = [
   { value: 'customer', label: 'Customer' },
   { value: 'architect', label: 'Architect' },
   { value: 'dealer', label: 'Dealer' },
+  { value: 'Admin', label: 'Admin' },
+  { value: 'SuperAdmin', label: 'SuperAdmin' },
+  { value: 'staff', label: 'Staff' }
 ];
+
+const STAFF_ROLES = ['Admin', 'SuperAdmin', 'staff', 'Manager'];
 
 const validStatuses = ['Pending', 'Approved', 'Rejected'];
 
@@ -69,12 +79,57 @@ const UsersList = () => {
     totalItems: 0,
     limit: 10,
   });
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Filter state
   const [filters, setFilters] = useState({
-    role: '',
-    status: '',
-    search: '',
-    userTypeName: '',
+    role: searchParams.get('role') || '',
+    status: searchParams.get('status') || '',
+    search: searchParams.get('search') || '',
+    userTypeName: searchParams.get('userTypeName') || '',
+    startDate: searchParams.get('startDate') || '',
+    endDate: searchParams.get('endDate') || '',
+    state: searchParams.get('state') || '',
+    city: searchParams.get('city') || '',
+    pincode: searchParams.get('pincode') || '',
   });
+
+  const [userTypes, setUserTypes] = useState([]);
+  const hasFetchedUserTypesRef = useRef(false);
+  const [summary, setSummary] = useState({
+    totalUsers: 0,
+    statusBreakdown: {},
+    roleBreakdown: {},
+  });
+
+  // Sync filters and pagination to URL
+  useEffect(() => {
+    const params = {};
+    if (pagination.currentPage > 1) params.page = pagination.currentPage;
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params[key] = value;
+    });
+    setSearchParams(params, { replace: true });
+  }, [filters, pagination.currentPage, setSearchParams]);
+
+  // Handle URL changes
+  useEffect(() => {
+    const search = searchParams.get('search') || '';
+    setSearchTerm(search);
+    setFilters({
+      search,
+      role: searchParams.get('role') || '',
+      status: searchParams.get('status') || '',
+      userTypeName: searchParams.get('userTypeName') || '',
+      startDate: searchParams.get('startDate') || '',
+      endDate: searchParams.get('endDate') || '',
+      state: searchParams.get('state') || '',
+      city: searchParams.get('city') || '',
+      pincode: searchParams.get('pincode') || '',
+    });
+    const page = parseInt(searchParams.get('page')) || 1;
+    setPagination(prev => ({ ...prev, currentPage: page }));
+  }, [searchParams]);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -139,6 +194,11 @@ const UsersList = () => {
           ...(currentFilters.status ? { status: currentFilters.status } : {}),
           ...(currentFilters.search ? { search: currentFilters.search } : {}),
           ...(currentFilters.userTypeName ? { userTypeName: currentFilters.userTypeName } : {}),
+          ...(currentFilters.startDate ? { startDate: currentFilters.startDate } : {}),
+          ...(currentFilters.endDate ? { endDate: currentFilters.endDate } : {}),
+          ...(currentFilters.state ? { state: currentFilters.state } : {}),
+          ...(currentFilters.city ? { city: currentFilters.city } : {}),
+          ...(currentFilters.pincode ? { pincode: currentFilters.pincode } : {}),
         };
 
         const response = currentShowPendingOnly
@@ -150,6 +210,7 @@ const UsersList = () => {
         }
 
         setUsers(response.users || []);
+        setSummary(response.summary || { totalUsers: 0, statusBreakdown: {}, roleBreakdown: {} });
         setPagination({
           currentPage: response.pagination.currentPage || 1,
           totalPages: response.pagination.totalPages || 1,
@@ -168,32 +229,24 @@ const UsersList = () => {
     []
   );
 
-  // Search function that triggers on button click or after typing stops
-  const handleSearch = useCallback((value, isButtonClick = false) => {
+  const handleSearch = (value, isButtonClick = false) => {
+    setSearchTerm(value);
+
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
 
     if (isButtonClick) {
-      // Immediate search on button click
-      setPagination((prev) => ({ ...prev, currentPage: 1 }));
-      setFilters((prev) => ({ ...prev, search: value.trim() }));
+      setPagination(prev => ({ ...prev, currentPage: 1 }));
+      setFilters(prev => ({ ...prev, search: value.trim() }));
       return;
     }
 
-    if (!value.trim()) {
-      // Clear search immediately
-      setPagination((prev) => ({ ...prev, currentPage: 1 }));
-      setFilters((prev) => ({ ...prev, search: '' }));
-      return;
-    }
-
-    // Auto-search after 1.5 seconds of typing
     searchTimeoutRef.current = setTimeout(() => {
-      setPagination((prev) => ({ ...prev, currentPage: 1 }));
-      setFilters((prev) => ({ ...prev, search: value.trim() }));
-    }, 1500);
-  }, []);
+      setPagination(prev => ({ ...prev, currentPage: 1 }));
+      setFilters(prev => ({ ...prev, search: value.trim() }));
+    }, 1000);
+  };
 
   const handleFilterChange = useCallback((filterName, value) => {
     setFilters((prev) => ({ ...prev, [filterName]: value }));
@@ -213,17 +266,15 @@ const UsersList = () => {
       status: '',
       search: '',
       userTypeName: '',
+      startDate: '',
+      endDate: '',
+      state: '',
+      city: '',
+      pincode: '',
     });
   }, []);
 
   const hasActiveFilters = Object.values(filters).some((value) => value !== '');
-
-  // Order history refs
-  const orderFiltersRef = useRef(orderFilters);
-
-  useEffect(() => {
-    orderFiltersRef.current = orderFilters;
-  }, [orderFilters]);
 
   // Load user order history
   const loadUserOrderHistory = useCallback(async (userId) => {
@@ -232,10 +283,11 @@ const UsersList = () => {
     try {
       setOrderHistory(prev => ({ ...prev, loading: true, error: null }));
 
-      const currentOrderFilters = orderFiltersRef.current;
-
       const response = await getUserOrderHistory(userId, {
-        ...currentOrderFilters,
+        status: orderFilters.status,
+        paymentStatus: orderFilters.paymentStatus,
+        page: orderFilters.page,
+        limit: orderFilters.limit,
         sortBy: 'orderDate',
         sortOrder: 'DESC'
       });
@@ -258,6 +310,23 @@ const UsersList = () => {
         loading: false,
         error: err.message || 'Failed to load order history'
       }));
+    }
+  }, [orderFilters]);
+
+  useEffect(() => {
+    if (!hasFetchedUserTypesRef.current) {
+      hasFetchedUserTypesRef.current = true;
+      const fetchUserTypes = async () => {
+        try {
+          const response = await getUserTypes();
+          // Support both response formats for compatibility
+          const types = response.userTypes || response.data || [];
+          setUserTypes(types);
+        } catch (error) {
+          console.error('Error fetching user types:', error);
+        }
+      };
+      fetchUserTypes();
     }
   }, []);
 
@@ -289,7 +358,7 @@ const UsersList = () => {
     if (showOrderHistory && selectedUser?.id) {
       loadUserOrderHistory(selectedUser.id);
     }
-  }, [showOrderHistory, selectedUser?.id, orderFilters, loadUserOrderHistory]);
+  }, [showOrderHistory, selectedUser?.id, loadUserOrderHistory]);
 
   const handleViewUserDetails = async (user) => {
     try {
@@ -313,7 +382,7 @@ const UsersList = () => {
       });
     } catch (err) {
       console.error('Error fetching user details:', err);
-      setError(err.message || 'Failed to load user details. Please try again.');
+      toast.error(err.message || 'Failed to load user details');
       setSelectedUser(user);
     } finally {
       setLoading(false);
@@ -321,17 +390,28 @@ const UsersList = () => {
   };
 
   const handleEditUser = async (user) => {
-    await handleViewUserDetails(user);
-    const u = user.id === selectedUser?.id ? selectedUser : user;
-    setEditForm({
-      name: u.name || '',
-      email: u.email || '',
-      role: u.role || '',
-      status: u.status || '',
-      company: u.company || '',
-      userTypeId: u.userTypeId || ''
-    });
-    setIsEditing(true);
+    try {
+      setLoading(true);
+      const response = await getUserById(user.id);
+      if (!response.success) throw new Error(response.message);
+
+      const u = response.user;
+      setSelectedUser(u);
+      setEditForm({
+        name: u.name || '',
+        email: u.email || '',
+        role: u.role || '',
+        status: u.status || '',
+        company: u.company || '',
+        userTypeId: u.userTypeId || ''
+      });
+      setIsEditing(true);
+    } catch (err) {
+      console.error('Error loading user for edit:', err);
+      toast.error('Failed to load user data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -349,7 +429,7 @@ const UsersList = () => {
       toast.success('User updated successfully');
     } catch (err) {
       console.error('Update user error:', err);
-      toast.error(err.message || 'Failed to update user. Please try again.');
+      toast.error(err.message || 'Failed to update user');
     } finally {
       setLoading(false);
     }
@@ -360,7 +440,6 @@ const UsersList = () => {
     if (!confirmed) return;
     try {
       setLoading(true);
-      setError(null);
       const resp = await deleteUser(userId);
       if (!resp.success) {
         throw new Error(resp.message || 'Failed to delete user');
@@ -372,7 +451,7 @@ const UsersList = () => {
       toast.success('User deleted successfully');
     } catch (err) {
       console.error('Delete user error:', err);
-      toast.error(err.message || 'Failed to delete user. Please try again.');
+      toast.error(err.message || 'Failed to delete user');
     } finally {
       setLoading(false);
     }
@@ -381,15 +460,11 @@ const UsersList = () => {
   const handleApproveUser = async (userId, status, reason = '') => {
     try {
       setLoading(true);
-      setError(null);
-
       const response = await approveUser(userId, { status, reason });
       if (!response.success) {
         throw new Error(response.message || `Failed to ${status.toLowerCase()} user`);
       }
-
       debouncedLoadUsers();
-
       if (selectedUser && selectedUser.id === userId) {
         setSelectedUser({
           ...selectedUser,
@@ -397,11 +472,10 @@ const UsersList = () => {
           rejectionReason: response.user.rejectionReason,
         });
       }
-
       toast.success(`User ${status.toLowerCase()} successfully!`);
     } catch (err) {
       console.error(`Error ${status.toLowerCase()} user:`, err);
-      toast.error(err.message || `Failed to ${status.toLowerCase()} user. Please try again.`);
+      toast.error(err.message || `Failed to ${status.toLowerCase()} user`);
     } finally {
       setLoading(false);
     }
@@ -414,44 +488,24 @@ const UsersList = () => {
     }
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'Approved':
-        return <CheckCircle className="text-green-500" size={16} />;
-      case 'Rejected':
-        return <XCircle className="text-red-500" size={16} />;
-      case 'Pending':
-        return <Clock className="text-yellow-500" size={16} />;
-      default:
-        return <AlertCircle className="text-gray-500" size={16} />;
-    }
-  };
-
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Approved':
-        return 'bg-green-100 text-green-800';
-      case 'Rejected':
-        return 'bg-red-100 text-red-800';
-      case 'Pending':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+      case 'Approved': return 'bg-green-100 text-green-800';
+      case 'Rejected': return 'bg-red-100 text-red-800';
+      case 'Pending': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+      year: 'numeric', month: 'short', day: 'numeric'
     });
   };
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR'
+      style: 'currency', currency: 'INR'
     }).format(amount);
   };
 
@@ -468,823 +522,557 @@ const UsersList = () => {
     return colors[status?.toLowerCase()] || 'bg-gray-100 text-gray-800';
   };
 
-  const getPaymentStatusColor = (status) => {
-    const colors = {
-      'pending': 'bg-yellow-100 text-yellow-800',
-      'completed': 'bg-green-100 text-green-800',
-      'failed': 'bg-red-100 text-red-800',
-      'refunded': 'bg-orange-100 text-orange-800',
-      'partially refunded': 'bg-orange-100 text-orange-600'
-    };
-    return colors[status?.toLowerCase()] || 'bg-gray-100 text-gray-800';
-  };
-
   const handlePageChange = (page) => {
     setPagination({ ...pagination, currentPage: page });
   };
 
-  useEffect(() => {
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-  }, []);
-
   return (
-    <div className="min-h-screen bg-gray-50 py-4">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="  mb-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-                <Users className="mr-3 text-primary" size={28} />
-                Users Management
-              </h1>
-              <p className="mt-1 text-gray-600">View and manage all users</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowPendingOnly(!showPendingOnly)}
-                className="flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors whitespace-nowrap"
-              >
-                <Filter className="mr-2" size={16} />
-                {showPendingOnly ? 'Show All' : 'Show Pending'}
-              </button>
-              <button
-                className="flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors whitespace-nowrap"
-              >
-                <Download className="mr-2" size={16} />
-                Export
-              </button>
-            </div>
-          </div>
+    <div className="p-4 sm:p-6 space-y-6 font-roboto">
+      {/* Header Section */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-primary">Users Management</h1>
+          <p className="text-gray-600">View and manage all registered platform users</p>
         </div>
+        <div className="flex space-x-3">
+          <button
+            className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
+          >
+            <Download className="mr-2" size={16} />
+            <span>Export</span>
+          </button>
+        </div>
+      </div>
 
-        {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                placeholder="Search by name or email... (auto-search after you stop typing)"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  handleSearch(e.target.value, false);
-                }}
-                className="w-full pl-4 pr-12 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
-              <button
-                onClick={() => handleSearch(searchTerm, true)}
-                disabled={searching}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-primary disabled:opacity-50 transition-colors"
-                title="Search"
-              >
-                {searching ? (
-                  <LoadingSpinner size="small" className="text-primary" />
-                ) : (
-                  <Search size={20} />
-                )}
-              </button>
-            </div>
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors whitespace-nowrap"
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        {[
+          { label: 'Total Users', icon: Users, color: 'blue', value: summary.totalUsers || 0, status: '' },
+          { label: 'Pending', icon: Clock, color: 'yellow', value: summary.statusBreakdown?.['Pending'] || 0, status: 'Pending' },
+          { label: 'Customers', icon: ShoppingBag, color: 'green', value: summary.roleBreakdown?.['customer'] || 0, role: 'customer' },
+          { label: 'Dealers', icon: Package, color: 'red', value: summary.roleBreakdown?.['Dealer'] || 0, role: 'Dealer' },
+          { label: 'Architects', icon: TrendingUp, color: 'purple', value: summary.roleBreakdown?.['Architect'] || 0, role: 'Architect' },
+        ].map((stat) => {
+          const Icon = stat.icon;
+          const isActive = (stat.status && filters.status === stat.status) || (stat.role && filters.role === stat.role);
+          const colors = {
+            blue: { bg: 'bg-blue-100', text: 'text-blue-600', border: 'border-blue-500', ring: 'ring-blue-500/20' },
+            yellow: { bg: 'bg-yellow-100', text: 'text-yellow-600', border: 'border-yellow-500', ring: 'ring-yellow-500/20' },
+            green: { bg: 'bg-green-100', text: 'text-green-600', border: 'border-green-500', ring: 'ring-green-500/20' },
+            red: { bg: 'bg-red-100', text: 'text-red-600', border: 'border-red-500', ring: 'ring-red-500/20' },
+            purple: { bg: 'bg-purple-100', text: 'text-purple-600', border: 'border-purple-500', ring: 'ring-purple-500/20' },
+            indigo: { bg: 'bg-indigo-100', text: 'text-indigo-600', border: 'border-indigo-500', ring: 'ring-indigo-500/20' },
+          };
+          const c = colors[stat.color] || colors.blue;
+
+          return (
+            <div
+              key={stat.label}
+              className={`p-4 bg-white rounded-lg shadow-sm border-2 cursor-pointer transition-all hover:shadow-md ${isActive ? `${c.border} ring-2 ${c.ring}` : 'border-transparent'}`}
+              onClick={() => {
+                if (stat.status) handleFilterChange('status', stat.status);
+                else if (stat.role) handleFilterChange('role', stat.role);
+                else clearFilters();
+              }}
             >
-              <Filter className="mr-2" size={16} />
-              Filters
-            </button>
+              <div className="flex items-center gap-3">
+                <div className={`p-2 ${c.bg} rounded-lg`}>
+                  <Icon className={`w-5 h-5 ${c.text}`} size={18} />
+                </div>
+                <div>
+                  <p className={`text-2xl font-bold ${isActive ? c.text : 'text-gray-900'}`}>{stat.value}</p>
+                  <p className="text-xs text-gray-500">{stat.label}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Filters Section */}
+      <div className="p-4 sm:p-6 bg-white rounded-lg shadow-sm border border-gray-100">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-lg font-semibold text-primary flex items-center gap-2">
+            <Filter size={18} />
+            Filters
+          </h3>
+          <div className="flex items-center gap-3">
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="flex items-center px-4 py-2 space-x-2 text-gray-600 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors whitespace-nowrap"
+                className="flex items-center space-x-1 px-3 py-1.5 text-sm text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
               >
-                <X size={16} />
-                <span>Clear</span>
+                <X size={14} />
+                <span>Clear All</span>
               </button>
             )}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center space-x-2 text-gray-600 transition-colors hover:text-primary"
+            >
+              <Filter size={16} />
+              <span>{showFilters ? 'Hide' : 'Show'} Filters</span>
+            </button>
           </div>
+        </div>
 
-          {showFilters && (
-            <div className="grid grid-cols-1 gap-4 pt-4 mt-4 border-t border-gray-200 sm:grid-cols-3">
+        {showFilters && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="md:col-span-2 relative flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    placeholder="Search by name, email, phone..."
+                    value={searchTerm}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch(searchTerm, true)}
+                    className="w-full py-2 pl-10 pr-4 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  />
+                  <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                </div>
+                <button
+                  onClick={() => handleSearch(searchTerm, true)}
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 transition-colors shadow-sm font-medium"
+                >
+                  Search
+                </button>
+              </div>
               <select
-                className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary transition-all bg-white"
+                value={filters.status}
+                onChange={(e) => handleFilterChange('status', e.target.value)}
+              >
+                <option value="">All Status</option>
+                {validStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <select
+                className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary transition-all bg-white"
                 value={filters.role}
                 onChange={(e) => handleFilterChange('role', e.target.value)}
               >
                 <option value="">All Roles</option>
-                {roleOptions.map((role) => (
-                  <option key={role.value} value={role.value}>{role.label}</option>
-                ))}
+                {roleOptions.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
               <select
-                className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
-                value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary transition-all bg-white"
+                value={filters.userTypeName}
+                onChange={(e) => handleFilterChange('userTypeName', e.target.value)}
               >
-                <option value="">All Statuses</option>
-                {validStatuses.map((status) => (
-                  <option key={status} value={status}>{status}</option>
+                <option value="">All User Types</option>
+                {userTypes.map(type => (
+                  <option key={type.id} value={type.name}>{type.name}</option>
                 ))}
               </select>
               <input
                 type="text"
-                placeholder="Search by user type..."
-                value={filters.userTypeName}
-                onChange={(e) => handleFilterChange('userTypeName', e.target.value)}
-                className="py-2 pr-4 pl-4 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
+                placeholder="State"
+                value={filters.state}
+                onChange={(e) => handleFilterChange('state', e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary transition-all text-sm"
               />
-            </div>
-          )}
-        </div>
-
-        {/* Users Table */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          {loading && users.length === 0 ? (
-            <div className="flex items-center justify-center py-12">
-              <LoadingSpinner className="text-primary mr-3" />
-              <span className="text-gray-600">Loading users...</span>
-            </div>
-          ) : users.length === 0 ? (
-            <div className="text-center py-12">
-              <Users className="mx-auto text-gray-400 mb-4" size={48} />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Users Found</h3>
-              <p className="text-gray-600 mb-4">
-                {filters.search || filters.role || filters.status
-                  ? 'Try adjusting your filters or search terms.'
-                  : 'Get started by creating your first user.'}
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Table */}
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        User
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Role
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Company
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        User Type
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Registered
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {users.map((user) => (
-                      <tr key={user.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleViewUserDetails(user)}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10">
-                              <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center">
-                                <span className="text-sm font-medium text-white">
-                                  {user.name?.charAt(0).toUpperCase() || 'U'}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                              <div className="text-sm text-gray-500">{user.email}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <Shield className="text-primary mr-2" size={16} />
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${user.role === 'Architect' || user.role === 'Dealer'
-                                ? 'bg-red-100 text-primary'
-                                : 'bg-gray-100 text-gray-800'
-                              }`}>
-                              {user.role}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            {getStatusIcon(user.status)}
-                            <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(user.status)}`}>
-                              {user.status}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {user.company || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {user.userType?.name || `Type ${user.userTypeId}` || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(user.createdAt)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex items-center justify-end space-x-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViewUserDetails(user);
-                              }}
-                              className="text-primary hover:text-red-700 p-1 rounded transition-colors"
-                              title="View Details"
-                            >
-                              <Eye size={16} />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditUser(user);
-                              }}
-                              className="text-blue-600 hover:text-blue-800 p-1 rounded transition-colors"
-                              title="Edit User"
-                            >
-                              <Pencil size={16} />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteUser(user.id);
-                              }}
-                              className="text-red-600 hover:text-red-800 p-1 rounded transition-colors"
-                              title="Delete User"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                            {user.status === 'Pending' && (
-                              <>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleApproveUser(user.id, 'Approved');
-                                  }}
-                                  className="text-green-600 hover:text-green-800 p-1 rounded transition-colors"
-                                  title="Approve User"
-                                >
-                                  <CheckCircle size={16} />
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRejectWithReason(user.id);
-                                  }}
-                                  className="text-red-600 hover:text-red-800 p-1 rounded transition-colors"
-                                  title="Reject User"
-                                >
-                                  <XCircle size={16} />
-                                </button>
-                              </>
-                            )}
-                            {user.status === 'Rejected' && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  alert(`Rejection Reason: ${user.rejectionReason || 'No reason provided'}`);
-                                }}
-                                className="text-yellow-600 hover:text-yellow-800 p-1 rounded transition-colors"
-                                title="View Rejection Reason"
-                              >
-                                <AlertCircle size={16} />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <input
+                type="text"
+                placeholder="City"
+                value={filters.city}
+                onChange={(e) => handleFilterChange('city', e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary transition-all text-sm"
+              />
+              <input
+                type="text"
+                placeholder="Pincode"
+                value={filters.pincode}
+                onChange={(e) => handleFilterChange('pincode', e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary transition-all text-sm"
+              />
+              <div className="relative">
+                <input
+                  type="date"
+                  value={filters.startDate}
+                  onChange={(e) => handleFilterChange('startDate', e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary transition-all text-sm h-[42px]"
+                />
+                <Calendar className="absolute left-3 top-[13px] text-gray-400" size={16} />
+                <span className="absolute -top-2.5 left-2 px-1 bg-white text-[10px] text-gray-500 font-bold z-10">FROM DATE</span>
               </div>
-
-              {/* Pagination */}
-              {pagination.totalPages > 1 && (
-                <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-                  <div className="flex-1 flex justify-between sm:hidden">
-                    <button
-                      onClick={() => handlePageChange(pagination.currentPage - 1)}
-                      disabled={pagination.currentPage === 1}
-                      className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Previous
-                    </button>
-                    <button
-                      onClick={() => handlePageChange(pagination.currentPage + 1)}
-                      disabled={pagination.currentPage === pagination.totalPages}
-                      className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Next
-                    </button>
-                  </div>
-                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-sm text-gray-700">
-                        Showing <span className="font-medium">{(pagination.currentPage - 1) * pagination.limit + 1}</span> to{' '}
-                        <span className="font-medium">{Math.min(pagination.currentPage * pagination.limit, pagination.totalItems)}</span> of{' '}
-                        <span className="font-medium">{pagination.totalItems}</span> results
-                      </p>
-                    </div>
-                    <div>
-                      <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                        <button
-                          onClick={() => handlePageChange(pagination.currentPage - 1)}
-                          disabled={pagination.currentPage === 1}
-                          className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <ChevronLeft size={16} />
-                        </button>
-                        {(() => {
-                          const pages = [];
-                          const maxVisible = 3;
-                          const totalPages = pagination.totalPages;
-                          const currentPage = pagination.currentPage;
-
-                          if (totalPages <= maxVisible) {
-                            for (let i = 1; i <= totalPages; i++) pages.push(i);
-                          } else {
-                            let startPage = Math.max(1, currentPage - 1);
-                            let endPage = startPage + maxVisible - 1;
-
-                            if (endPage > totalPages) {
-                              endPage = totalPages;
-                              startPage = Math.max(1, endPage - maxVisible + 1);
-                            }
-
-                            for (let i = startPage; i <= endPage; i++) pages.push(i);
-                          }
-
-                          return pages.map((page) => (
-                            <button
-                              key={page}
-                              onClick={() => handlePageChange(page)}
-                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${page === currentPage
-                                  ? 'z-10 bg-primary border-primary text-white'
-                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                                }`}
-                            >
-                              {page}
-                            </button>
-                          ));
-                        })()}
-                        <button
-                          onClick={() => handlePageChange(pagination.currentPage + 1)}
-                          disabled={pagination.currentPage === pagination.totalPages}
-                          className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <ChevronRight size={16} />
-                        </button>
-                      </nav>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* User Details Modal */}
-        {selectedUser && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-gray-900">User Details</h2>
-                  <button
-                    onClick={() => setSelectedUser(null)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <XCircle size={24} />
-                  </button>
-                </div>
-
-                {/* Navigation Tabs */}
-                <div className="flex border-b border-gray-200 mb-6">
-                  <button
-                    onClick={() => setShowOrderHistory(false)}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 ${!showOrderHistory
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                  >
-                    User Information
-                  </button>
-                  <button
-                    onClick={() => setShowOrderHistory(true)}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 ml-4 ${showOrderHistory
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <ShoppingBag size={16} />
-                      <span>Order History</span>
-                    </div>
-                  </button>
-                </div>
-
-                {!showOrderHistory ? (
-                  /* User Information Tab */
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                      <div>
-                        <h3 className="mb-3 font-medium text-gray-900">Personal Information</h3>
-                        {!isEditing ? (
-                          <div className="space-y-3">
-                            <div className="flex items-center">
-                              <div className="h-20 w-20 rounded-full bg-primary flex items-center justify-center">
-                                <span className="text-2xl font-medium text-white">
-                                  {selectedUser.name?.charAt(0).toUpperCase() || 'U'}
-                                </span>
-                              </div>
-                              <div className="ml-4">
-                                <h4 className="text-lg font-semibold text-gray-900">{selectedUser.name}</h4>
-                                <p className="text-sm text-gray-600">{selectedUser.email}</p>
-                              </div>
-                            </div>
-                            <div className="space-y-2 text-sm">
-                              <p><span className="font-medium text-gray-700">Name:</span> {selectedUser.name}</p>
-                              <p><span className="font-medium text-gray-700">Email:</span> {selectedUser.email}</p>
-                              <p><span className="font-medium text-gray-700">Phone:</span> {selectedUser.mobile || '-'}</p>
-                              {selectedUser.company && (
-                                <p><span className="font-medium text-gray-700">Company:</span> {selectedUser.company}</p>
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <div>
-                              <label className="block mb-1 text-sm text-gray-700">Name</label>
-                              <input
-                                value={editForm.name}
-                                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
-                              />
-                            </div>
-                            <div>
-                              <label className="block mb-1 text-sm text-gray-700">Email</label>
-                              <input
-                                value={editForm.email}
-                                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
-                              />
-                            </div>
-                            <div>
-                              <label className="block mb-1 text-sm text-gray-700">Company</label>
-                              <input
-                                value={editForm.company}
-                                onChange={(e) => setEditForm({ ...editForm, company: e.target.value })}
-                                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <h3 className="mb-3 font-medium text-gray-900">Account Details</h3>
-                        {!isEditing ? (
-                          <div className="space-y-3 text-sm">
-                            <div className="flex items-center">
-                              <Shield className="text-primary mr-2" size={16} />
-                              <span className="font-medium text-gray-700">Role:</span>
-                              <span className="ml-2 px-2 py-1 text-xs font-medium rounded-full bg-primary bg-opacity-10 text-primary">
-                                {selectedUser.role}
-                              </span>
-                            </div>
-                            <div className="flex items-center">
-                              {getStatusIcon(selectedUser.status)}
-                              <span className="ml-2 font-medium text-gray-700">Status:</span>
-                              <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedUser.status)}`}>
-                                {selectedUser.status}
-                              </span>
-                            </div>
-                            <p>
-                              <span className="font-medium text-gray-700">User Type:</span>{' '}
-                              {selectedUser.userType?.name || `Type ${selectedUser.userTypeId}` || '-'}
-                            </p>
-                            <p>
-                              <span className="font-medium text-gray-700">Registered:</span>{' '}
-                              {formatDate(selectedUser.createdAt)}
-                            </p>
-                            {selectedUser.rejectionReason && (
-                              <p>
-                                <span className="font-medium text-gray-700">Rejection Reason:</span>{' '}
-                                <span className="text-red-600">{selectedUser.rejectionReason}</span>
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <div>
-                              <label className="block mb-1 text-sm text-gray-700">Role</label>
-                              <select
-                                value={editForm.role}
-                                onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
-                                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
-                              >
-                                <option value="">Select Role</option>
-                                {roleOptions.map(role => <option key={role.value} value={role.value}>{role.label}</option>)}
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block mb-1 text-sm text-gray-700">Status</label>
-                              <select
-                                value={editForm.status}
-                                onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
-                              >
-                                <option value="Pending">Pending</option>
-                                <option value="Approved">Approved</option>
-                                <option value="Rejected">Rejected</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block mb-1 text-sm text-gray-700">User Type Id</label>
-                              <input
-                                value={editForm.userTypeId}
-                                onChange={(e) => setEditForm({ ...editForm, userTypeId: e.target.value })}
-                                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {(selectedUser.status === 'Pending' || selectedUser.status === 'Rejected') && (
-                      <div className="pt-4 border-t border-gray-200">
-                        <h3 className="mb-3 font-medium text-gray-900">Admin Actions</h3>
-                        <div className="flex space-x-4">
-                          <button
-                            onClick={() => handleApproveUser(selectedUser.id, 'Approved')}
-                            className="flex items-center px-4 py-2 space-x-2 text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
-                            disabled={loading}
-                          >
-                            <CheckCircle size={16} />
-                            <span>Approve</span>
-                          </button>
-                          <button
-                            onClick={() => handleRejectWithReason(selectedUser.id)}
-                            className="flex items-center px-4 py-2 space-x-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
-                            disabled={loading}
-                          >
-                            <XCircle size={16} />
-                            <span>Reject</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="pt-4 border-t border-gray-200 flex justify-end space-x-3">
-                      {!isEditing ? (
-                        <button
-                          onClick={() => setIsEditing(true)}
-                          className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                        >
-                          Edit
-                        </button>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => setIsEditing(false)}
-                            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={handleSaveEdit}
-                            disabled={loading}
-                            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-red-700 transition-colors"
-                          >
-                            Save Changes
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  /* Order History Tab */
-                  <div className="space-y-4">
-                    {/* Order Summary Cards */}
-                    {orderHistory.summary && (
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                        <div className="p-4 bg-blue-50 rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm text-blue-600">Total Orders</p>
-                              <p className="text-2xl font-bold text-blue-900">{orderHistory.summary.totalOrders}</p>
-                            </div>
-                            <ShoppingBag className="text-blue-600" size={24} />
-                          </div>
-                        </div>
-                        <div className="p-4 bg-green-50 rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm text-green-600">Delivered Orders</p>
-                              <p className="text-2xl font-bold text-green-900">
-                                {orderHistory.summary.statusBreakdown?.Delivered?.count || 0}
-                              </p>
-                            </div>
-                            <Package className="text-green-600" size={24} />
-                          </div>
-                        </div>
-                        <div className="p-4 bg-purple-50 rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm text-purple-600">Total Value</p>
-                              <p className="text-2xl font-bold text-purple-900">
-                                {formatCurrency(
-                                  Object.values(orderHistory.summary.statusBreakdown || {})
-                                    .reduce((sum, status) => sum + (status.totalAmount || 0), 0)
-                                )}
-                              </p>
-                            </div>
-                            <DollarSign className="text-purple-600" size={24} />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Order Filters */}
-                    <div className="flex flex-col gap-4 p-4 bg-gray-50 rounded-lg sm:flex-row">
-                      <div className="flex-1">
-                        <select
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                          value={orderFilters.status}
-                          onChange={(e) => setOrderFilters({ ...orderFilters, status: e.target.value, page: 1 })}
-                        >
-                          <option value="">All Order Status</option>
-                          <option value="Pending">Pending</option>
-                          <option value="Confirmed">Confirmed</option>
-                          <option value="Processing">Processing</option>
-                          <option value="Shipped">Shipped</option>
-                          <option value="Delivered">Delivered</option>
-                          <option value="Cancelled">Cancelled</option>
-                          <option value="Returned">Returned</option>
-                        </select>
-                      </div>
-                      <div className="flex-1">
-                        <select
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                          value={orderFilters.paymentStatus}
-                          onChange={(e) => setOrderFilters({ ...orderFilters, paymentStatus: e.target.value, page: 1 })}
-                        >
-                          <option value="">All Payment Status</option>
-                          <option value="Pending">Pending</option>
-                          <option value="Completed">Completed</option>
-                          <option value="Failed">Failed</option>
-                          <option value="Refunded">Refunded</option>
-                          <option value="Partially Refunded">Partially Refunded</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Orders List */}
-                    <div className="space-y-4">
-                      {orderHistory.loading ? (
-                        <div className="flex items-center justify-center h-32">
-                          <div className="text-center">
-                            <LoadingSpinner className="text-primary mx-auto mb-2" />
-                            <p className="text-sm text-gray-600">Loading orders...</p>
-                          </div>
-                        </div>
-                      ) : orderHistory.error ? (
-                        <div className="p-4 text-center text-red-600 bg-red-50 rounded-lg">
-                          {orderHistory.error}
-                        </div>
-                      ) : orderHistory.orders.length === 0 ? (
-                        <div className="p-8 text-center text-gray-500">
-                          <ShoppingBag size={48} className="mx-auto mb-4 text-gray-300" />
-                          <p className="text-lg font-medium">No orders found</p>
-                          <p className="text-sm">This user hasn't placed any orders yet.</p>
-                        </div>
-                      ) : (
-                        orderHistory.orders.map((order) => (
-                          <div key={order.id} className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
-                            {/* Order Header */}
-                            <div className="flex flex-col justify-between mb-3 sm:flex-row sm:items-center">
-                              <div className="flex items-center space-x-3">
-                                <h4 className="font-medium text-gray-900">Order #{order.id}</h4>
-                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getOrderStatusColor(order.status)}`}>
-                                  {order.status}
-                                </span>
-                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPaymentStatusColor(order.paymentStatus)}`}>
-                                  {order.paymentStatus}
-                                </span>
-                              </div>
-                              <div className="flex items-center mt-2 space-x-4 text-sm text-gray-500 sm:mt-0">
-                                <div className="flex items-center space-x-1">
-                                  <Calendar size={14} />
-                                  <span>{new Date(order.orderDate).toLocaleDateString()}</span>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <DollarSign size={14} />
-                                  <span className="font-medium text-gray-900">{formatCurrency(order.total)}</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Order Items */}
-                            {order.orderItems && order.orderItems.length > 0 && (
-                              <div className="space-y-2">
-                                <h5 className="text-sm font-medium text-gray-700">Items ({order.orderItems.length})</h5>
-                                <div className="space-y-2">
-                                  {order.orderItems.slice(0, 2).map((item, index) => (
-                                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                                      <div className="flex-1">
-                                        <p className="text-sm font-medium text-gray-900">
-                                          {item.product?.name || 'Product Unavailable'}
-                                        </p>
-                                        <div className="flex items-center space-x-4 text-xs text-gray-500">
-                                          <span>Qty: {item.quantity}</span>
-                                          <span>Price: {formatCurrency(item.price)}</span>
-                                          {item.product?.currentPrice && item.product.currentPrice !== item.price && (
-                                            <span className={`${item.product.priceChange > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                              ({item.product.priceChange > 0 ? '+' : ''}{formatCurrency(item.product.priceChange)} current)
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
-                                      <div className="text-sm font-medium text-gray-900">
-                                        {formatCurrency(item.price * item.quantity)}
-                                      </div>
-                                    </div>
-                                  ))}
-                                  {order.orderItems.length > 2 && (
-                                    <div className="p-2 text-center text-sm text-gray-500 bg-gray-50 rounded">
-                                      +{order.orderItems.length - 2} more items
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Delivery Address */}
-                            {order.deliveryAddress && (
-                              <div className="mt-3 pt-3 border-t border-gray-100">
-                                <h5 className="text-sm font-medium text-gray-700 mb-1">Delivery Address</h5>
-                                <div className="text-sm text-gray-600">
-                                  <p>{order.deliveryAddress.data?.name}</p>
-                                  <p>{order.deliveryAddress.data?.address}</p>
-                                  <p>{order.deliveryAddress.data?.city}, {order.deliveryAddress.data?.state} {order.deliveryAddress.data?.pincode}</p>
-                                  {order.deliveryAddress.data?.phone && (
-                                    <p>Phone: {order.deliveryAddress.data.phone}</p>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))
-                      )}
-
-                      {/* Order Pagination */}
-                      {orderHistory.pagination.totalPages > 1 && (
-                        <div className="flex items-center justify-between pt-4">
-                          <div className="text-sm text-gray-700">
-                            Showing {((orderHistory.pagination.currentPage - 1) * orderFilters.limit) + 1} to{' '}
-                            {Math.min(orderHistory.pagination.currentPage * orderFilters.limit, orderHistory.pagination.totalItems)} of{' '}
-                            {orderHistory.pagination.totalItems} orders
-                          </div>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => setOrderFilters({ ...orderFilters, page: orderFilters.page - 1 })}
-                              disabled={orderFilters.page <= 1}
-                              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              Previous
-                            </button>
-                            <span className="px-3 py-1 text-sm">
-                              {orderFilters.page} of {orderHistory.pagination.totalPages}
-                            </span>
-                            <button
-                              onClick={() => setOrderFilters({ ...orderFilters, page: orderFilters.page + 1 })}
-                              disabled={orderFilters.page >= orderHistory.pagination.totalPages}
-                              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              Next
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+              <div className="relative">
+                <input
+                  type="date"
+                  value={filters.endDate}
+                  onChange={(e) => handleFilterChange('endDate', e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary transition-all text-sm h-[42px]"
+                />
+                <Calendar className="absolute left-3 top-[13px] text-gray-400" size={16} />
+                <span className="absolute -top-2.5 left-2 px-1 bg-white text-[10px] text-gray-500 font-bold z-10">TO DATE</span>
               </div>
             </div>
           </div>
         )}
+
+        {/* Active Filter Chips */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-100">
+            <span className="text-sm font-medium text-gray-500 mr-2">Active filters:</span>
+            {Object.entries(filters).map(([key, value]) => {
+              if (!value || key === 'search') return null;
+              return (
+                <div key={key} className="flex items-center px-3 py-1 rounded-full border border-gray-200 bg-gray-50 text-xs font-medium text-gray-700">
+                  <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                  <span className="ml-1">{value}</span>
+                  <button onClick={() => handleFilterChange(key, '')} className="ml-2 hover:opacity-70 transition-opacity">
+                    <X size={12} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
+
+      {/* Main Table Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden relative">
+        {loading && users.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <LoadingSpinner className="text-primary mb-4" />
+            <p className="text-gray-500">Loading users...</p>
+          </div>
+        ) : users.length === 0 ? (
+          <div className="text-center py-20">
+            <Users size={48} className="mx-auto text-gray-300 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900">No Users Found</h3>
+            <p className="text-gray-500 max-w-sm mx-auto">Adjust your filters to find what you're looking for.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            {loading && (
+              <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
+                <LoadingSpinner className="text-primary" />
+              </div>
+            )}
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registered</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {users.map((user) => (
+                  <tr key={user.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => handleViewUserDetails(user)}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-white font-bold">
+                          {user.name?.charAt(0).toUpperCase() || 'U'}
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                          <div className="text-sm text-gray-500">{user.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${STAFF_ROLES.includes(user.role) ? 'bg-primary/10 text-primary' : 'bg-gray-100 text-gray-800'}`}>
+                        {user.role}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(user.status)}`}>
+                        {user.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {user.company || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-700">
+                        {user.userType?.name || '-'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(user.createdAt)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex justify-end space-x-2">
+                        <button onClick={() => handleViewUserDetails(user)} className="text-blue-600 hover:text-blue-900"><Eye size={18} /></button>
+                        <button onClick={() => handleEditUser(user)} className="text-gray-600 hover:text-gray-900"><Pencil size={18} /></button>
+                        <button onClick={() => handleDeleteUser(user.id)} className="text-red-600 hover:text-red-900"><Trash2 size={18} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Pagination */}
+            {pagination.totalPages > 1 && (
+              <div className="bg-white px-6 py-4 flex items-center justify-between border-t border-gray-200">
+                <div className="text-sm text-gray-700">
+                  Showing <span className="font-medium">{(pagination.currentPage - 1) * pagination.limit + 1}</span> to <span className="font-medium">{Math.min(pagination.currentPage * pagination.limit, pagination.totalItems)}</span> of <span className="font-medium">{pagination.totalItems}</span> results
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => handlePageChange(pagination.currentPage - 1)}
+                    disabled={pagination.currentPage === 1}
+                    className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  {[...Array(pagination.totalPages)].map((_, i) => {
+                    const page = i + 1;
+                    if (page === 1 || page === pagination.totalPages || (page >= pagination.currentPage - 1 && page <= pagination.currentPage + 1)) {
+                      return (
+                        <button
+                          key={page}
+                          onClick={() => handlePageChange(page)}
+                          className={`px-3 py-1 border rounded-md text-sm font-medium ${page === pagination.currentPage ? 'bg-primary text-white border-primary' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                        >
+                          {page}
+                        </button>
+                      );
+                    }
+                    if (page === pagination.currentPage - 2 || page === pagination.currentPage + 2) return <span key={page}>...</span>;
+                    return null;
+                  })}
+                  <button
+                    onClick={() => handlePageChange(pagination.currentPage + 1)}
+                    disabled={pagination.currentPage === pagination.totalPages}
+                    className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* User Details Modal */}
+      {selectedUser && !isEditing && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xl">
+                  {selectedUser.name?.charAt(0).toUpperCase() || 'U'}
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">{selectedUser.name}</h2>
+                  <p className="text-sm text-gray-500">{selectedUser.email}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleEditUser(selectedUser)}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-gray-700 rounded-full hover:bg-gray-100 transition-all text-sm font-semibold border border-gray-200"
+                >
+                  <Pencil size={14} className="text-gray-500" />
+                  Edit
+                </button>
+                <button onClick={() => setSelectedUser(null)} className="text-gray-400 hover:text-gray-600 p-2 transition-colors">
+                  <X size={24} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {/* Modal Tabs */}
+              <div className="flex gap-6 border-b border-gray-100 mb-6">
+                <button
+                  onClick={() => setShowOrderHistory(false)}
+                  className={`pb-3 text-sm font-medium transition-colors border-b-2 ${!showOrderHistory ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                  User Information
+                </button>
+                <button
+                  onClick={() => setShowOrderHistory(true)}
+                  className={`pb-3 text-sm font-medium transition-colors border-b-2 ${showOrderHistory ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                  Order History
+                </button>
+              </div>
+
+              {!showOrderHistory ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                  <div className="space-y-8">
+                    <div>
+                      <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4">Contact Information</h4>
+                      <div className="space-y-4">
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-400 mb-1">Phone</span>
+                          <span className="text-sm font-bold text-gray-900">{selectedUser.mobile || '-'}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-400 mb-1">Company</span>
+                          <span className="text-sm font-bold text-gray-900">{selectedUser.company || '-'}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-400 mb-1">Role</span>
+                          <span className="text-sm font-bold text-gray-900">{selectedUser.role}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4">Account Status</h4>
+                      <div className="space-y-4">
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-400 mb-1">Status</span>
+                          <div>
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${getStatusColor(selectedUser.status)}`}>
+                              {selectedUser.status}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-400 mb-1">Registered</span>
+                          <span className="text-sm font-bold text-gray-900">{formatDate(selectedUser.createdAt)}</span>
+                        </div>
+                        {selectedUser.rejectionReason && (
+                          <div className="flex flex-col">
+                            <span className="text-xs text-gray-400 mb-1">Reason</span>
+                            <span className="text-sm font-medium text-red-600">{selectedUser.rejectionReason}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-8">
+                    <div>
+                      <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4">Location Details</h4>
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-400 mb-1">City</span>
+                          <span className="text-sm font-bold text-gray-900">{selectedUser.city || '-'}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-400 mb-1">State</span>
+                          <span className="text-sm font-bold text-gray-900">{selectedUser.state || '-'}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-400 mb-1">Pincode</span>
+                          <span className="text-sm font-bold text-gray-900">{selectedUser.pincode || '-'}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-400 mb-1">Country</span>
+                          <span className="text-sm font-bold text-gray-900">{selectedUser.country || '-'}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {selectedUser.status === 'Pending' && (
+                      <div className="p-5 bg-yellow-50 rounded-xl border border-yellow-100 mt-4">
+                        <p className="text-sm text-yellow-800 font-medium mb-4">This account requires administrative review.</p>
+                        <div className="flex gap-3">
+                          <button onClick={() => handleApproveUser(selectedUser.id, 'Approved')} className="flex-1 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-shadow hover:shadow-lg">Approve</button>
+                          <button onClick={() => handleRejectWithReason(selectedUser.id)} className="flex-1 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition-shadow hover:shadow-lg">Reject</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {orderHistory.summary && (
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                        <p className="text-xs text-blue-600 uppercase font-bold mb-1">Total Orders</p>
+                        <p className="text-2xl font-bold text-blue-900">{orderHistory.summary.totalOrders}</p>
+                      </div>
+                      <div className="p-4 bg-green-50 rounded-lg border border-green-100">
+                        <p className="text-xs text-green-600 uppercase font-bold mb-1">Delivered</p>
+                        <p className="text-2xl font-bold text-green-900">{orderHistory.summary.statusBreakdown?.delivered?.count || 0}</p>
+                      </div>
+                      <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
+                        <p className="text-xs text-purple-600 uppercase font-bold mb-1">Total Amount</p>
+                        <p className="text-2xl font-bold text-purple-900">{formatCurrency(orderHistory.summary.totalSpent || 0)}</p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="space-y-3">
+                    {orderHistory.loading ? <LoadingSpinner className="mx-auto" /> : orderHistory.orders.length === 0 ? <p className="text-center py-10 text-gray-400">No orders found for this user.</p> : (
+                      orderHistory.orders.map(order => (
+                        <div key={order.id} className="p-4 border border-gray-100 rounded-lg flex justify-between items-center hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center gap-4">
+                            <ShoppingBag className="text-gray-400" size={20} />
+                            <div>
+                              <p className="font-bold text-gray-900">Order #{order.id}</p>
+                              <p className="text-xs text-gray-500">{new Date(order.orderDate).toLocaleDateString()}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-primary">{formatCurrency(order.total)}</p>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold ${getOrderStatusColor(order.status)}`}>{order.status}</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {isEditing && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Edit User</h2>
+              <button onClick={() => setIsEditing(false)} className="text-gray-400 hover:text-gray-600 focus:outline-none"><X size={20} /></button>
+            </div>
+            <div className="space-y-5">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Name</label>
+                <input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Role</label>
+                  <select value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none">
+                    {roleOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Status</label>
+                  <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none">
+                    {validStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Company</label>
+                <input type="text" value={editForm.company} onChange={(e) => setEditForm({ ...editForm, company: e.target.value })} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">User Type</label>
+                <select
+                  value={editForm.userTypeId}
+                  onChange={(e) => setEditForm({ ...editForm, userTypeId: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none"
+                >
+                  <option value="">Select User Type</option>
+                  {userTypes.map(type => (
+                    <option key={type.id} value={type.id}>{type.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-4 mt-8">
+              <button onClick={() => setIsEditing(false)} className="flex-1 py-3 bg-gray-50 text-gray-600 rounded-xl font-bold hover:bg-gray-100 transition-all border border-gray-200">Cancel</button>
+              <button onClick={handleSaveEdit} disabled={loading} className="flex-1 py-3 bg-primary text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-md hover:shadow-lg active:scale-95">{loading ? 'Saving...' : 'Save Changes'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

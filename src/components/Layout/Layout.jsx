@@ -10,7 +10,7 @@ const Layout = ({ children, currentPage, userRole, onLogout, currentUser }) => {
   return (
     <div className="flex h-screen bg-gray-50 font-roboto overflow-hidden">
       {/* Desktop Sidebar */}
-      <div className="hidden lg:block animate-fade-in-left">
+      <div className="hidden lg:block">
         <Sidebar
           currentPage={currentPage}
           userRole={userRole}
@@ -28,7 +28,7 @@ const Layout = ({ children, currentPage, userRole, onLogout, currentUser }) => {
             className="absolute inset-0 bg-gray-600 bg-opacity-75"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="relative w-64 animate-fade-in-left">
+          <div className="relative w-64">
             <Sidebar
               currentPage={currentPage}
               userRole={userRole}

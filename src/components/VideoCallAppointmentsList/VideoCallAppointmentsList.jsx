@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Plus, Search, Filter, X, RefreshCw, Eye, Edit, Trash2, AlertCircle, CheckCircle, Loader2, FileText } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Plus, Search, Filter, X, RefreshCw, Eye, Edit, Trash2, AlertCircle, CheckCircle, Loader2, FileText, Calendar, Package, Clock, Video } from 'lucide-react';
 import Table from '../Common/Table';
 import StatusBadge from '../Common/StatusBadge';
 import Modal from '../Common/Modal';
 import appointmentApi from './appointmentApi';
+import { getUserTypes } from '../Enquiries/EnquiryApi';
 import AddEditAppointment from './AddEditAppointment';
 import AppointmentDetails from './AppointmentDetails';
 import InternalNotes from './InternalNotes';
@@ -51,8 +53,8 @@ const EmptyState = ({ onRefresh, isStaff }) => (
     <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
     <h3 className="mt-2 text-sm font-medium text-gray-900">No appointments found</h3>
     <p className="mt-1 text-sm text-gray-500">
-      {isStaff 
-        ? 'Get started by adding your first video call appointment.' 
+      {isStaff
+        ? 'Get started by adding your first video call appointment.'
         : 'No appointments scheduled yet. Schedule one to get started.'
       }
     </p>
@@ -97,12 +99,60 @@ const VideoCallAppointmentsList = ({ currentUser }) => {
   // Use useRef to store the search timeout
   const searchTimeoutRef = useRef(null);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+
   // Filter state
   const [filters, setFilters] = useState({
-    search: '',
-    status: '',
-    source: '',
+    search: searchParams.get('search') || '',
+    status: searchParams.get('status') || '',
+    source: searchParams.get('source') || '',
+    startDate: searchParams.get('startDate') || '',
+    endDate: searchParams.get('endDate') || '',
+    userType: searchParams.get('userType') || '',
+    role: searchParams.get('role') || '',
   });
+
+  const [summary, setSummary] = useState({
+    totalItems: 0,
+    statusBreakdown: {},
+  });
+
+  const [userTypes, setUserTypes] = useState([]);
+  const hasFetchedUserTypesRef = useRef(false);
+
+  // Sync filters and pagination to URL
+  useEffect(() => {
+    const params = {};
+    if (currentPage > 1) params.page = currentPage;
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params[key] = value;
+    });
+    setSearchParams(params, { replace: true });
+  }, [filters, currentPage, setSearchParams]);
+
+  // Handle URL changes
+  useEffect(() => {
+    const search = searchParams.get('search') || '';
+    setSearchTerm(search);
+    setFilters({
+      search,
+      status: searchParams.get('status') || '',
+      source: searchParams.get('source') || '',
+      startDate: searchParams.get('startDate') || '',
+      endDate: searchParams.get('endDate') || '',
+      userType: searchParams.get('userType') || '',
+      role: searchParams.get('role') || '',
+    });
+    const page = parseInt(searchParams.get('page')) || 1;
+    setCurrentPage(page);
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!hasFetchedUserTypesRef.current) {
+      hasFetchedUserTypesRef.current = true;
+      getUserTypes().then(res => setUserTypes(res.data || [])).catch(console.error);
+    }
+  }, []);
 
   const SOURCES = ['VideoCall', 'Website', 'Phone', 'Email'];
   const STATUSES = ['New', 'Scheduled', 'Completed', 'Cancelled'];
@@ -141,11 +191,12 @@ const VideoCallAppointmentsList = ({ currentUser }) => {
 
         const appointmentsData = Array.isArray(response.data) ? response.data : (response || []);
         setAppointments(appointmentsData);
-        
+        setSummary(response.summary || { totalItems: 0, statusBreakdown: {} });
+
         const pagination = response.pagination || {};
         setTotalPages(pagination.totalPages || 1);
         setTotalItems(pagination.totalItems || appointmentsData.length);
-        
+
         if (appointmentsData.length === 0 && currentPage === 1 && showLoader) {
           showToast('No appointments found. Create one to get started!', 'info');
         }
@@ -210,13 +261,13 @@ const VideoCallAppointmentsList = ({ currentUser }) => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
-    
+
     // Reset all filters and search term
     setFilters({ search: '', status: '', source: '' });
     setSearchTerm('');
     setCurrentPage(1);
     setShowFilters(false);
-    
+
     // Fetch fresh data after filters are cleared
     setTimeout(() => {
       fetchAppointments(false);
@@ -227,8 +278,16 @@ const VideoCallAppointmentsList = ({ currentUser }) => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
-    
-    setFilters({ search: '', status: '', source: '' });
+
+    setFilters({
+      search: '',
+      status: '',
+      source: '',
+      startDate: '',
+      endDate: '',
+      userType: '',
+      role: '',
+    });
     setSearchTerm('');
     setCurrentPage(1);
     setShowFilters(false);
@@ -468,16 +527,16 @@ const VideoCallAppointmentsList = ({ currentUser }) => {
   }
 
   return (
-    <div className="p-6 space-y-6 font-roboto">
+    <div className="p-4 sm:p-6 space-y-6 font-roboto animate-fade-in-left">
       {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
 
       {/* Header Section */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Video Call Appointments</h1>
+          <h1 className="text-2xl font-bold text-primary">Video Call Appointments</h1>
           <p className="text-gray-600">
             {isStaff
-              ? `Manage video call appointment requests (${totalItems} total)`
+              ? `Manage customer video call schedules`
               : 'View and manage your video call appointments'
             }
           </p>
@@ -486,8 +545,7 @@ const VideoCallAppointmentsList = ({ currentUser }) => {
           {isStaff && (
             <button
               onClick={() => setShowAddAppointment(true)}
-              className="flex items-center px-4 py-2 space-x-2 text-white rounded-lg bg-primary hover:opacity-90 transition-opacity"
-              aria-label="Add Appointment"
+              className="flex items-center px-4 py-2 space-x-2 text-white rounded-lg bg-primary hover:bg-red-600 transition-colors shadow-sm"
             >
               <Plus size={16} />
               <span>Add Appointment</span>
@@ -496,87 +554,200 @@ const VideoCallAppointmentsList = ({ currentUser }) => {
         </div>
       </div>
 
+      {/* Stats Cards */}
+      {isStaff && (
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          {[
+            { label: 'Total Requests', icon: Video, color: 'blue', value: summary.totalItems, status: '' },
+            { label: 'New', icon: AlertCircle, color: 'yellow', value: summary.statusBreakdown['New'] || 0, status: 'New' },
+            { label: 'Scheduled', icon: Clock, color: 'indigo', value: summary.statusBreakdown['Scheduled'] || 0, status: 'Scheduled', animate: true },
+            { label: 'Completed', icon: CheckCircle, color: 'green', value: summary.statusBreakdown['Completed'] || 0, status: 'Completed' },
+            { label: 'Cancelled', icon: X, color: 'red', value: summary.statusBreakdown['Cancelled'] || 0, status: 'Cancelled' },
+          ].map((stat) => {
+            const Icon = stat.icon;
+            const isActive = filters.status === stat.status;
+            const colors = {
+              blue: { bg: 'bg-blue-100', text: 'text-blue-600', border: 'border-blue-500', ring: 'ring-blue-500/20' },
+              yellow: { bg: 'bg-yellow-100', text: 'text-yellow-600', border: 'border-yellow-500', ring: 'ring-yellow-500/20' },
+              indigo: { bg: 'bg-indigo-100', text: 'text-indigo-600', border: 'border-indigo-500', ring: 'ring-indigo-500/20' },
+              green: { bg: 'bg-green-100', text: 'text-green-600', border: 'border-green-500', ring: 'ring-green-500/20' },
+              red: { bg: 'bg-red-100', text: 'text-red-600', border: 'border-red-500', ring: 'ring-red-500/20' },
+            };
+            const c = colors[stat.color] || colors.blue;
+
+            return (
+              <div
+                key={stat.label}
+                className={`p-4 bg-white rounded-lg shadow-sm border-2 cursor-pointer transition-all hover:shadow-md ${isActive ? `${c.border} ring-2 ${c.ring}` : 'border-transparent'}`}
+                onClick={() => handleFilterChange('status', stat.status)}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 ${c.bg} rounded-lg`}>
+                    <Icon className={`w-5 h-5 ${c.text} ${stat.animate ? 'animate-spin-slow' : ''}`} />
+                  </div>
+                  <div>
+                    <p className={`text-2xl font-bold ${isActive ? c.text : 'text-gray-900'}`}>{stat.value}</p>
+                    <p className="text-xs text-gray-500">{stat.label}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Search and Filters Section */}
       {isStaff && (
-        <div className="p-4 bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                placeholder="Search appointments... (auto-search after you stop typing)"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  handleSearch(e.target.value, false);
-                }}
-                className="w-full py-2 pl-4 pr-12 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
-                aria-label="Search Appointments"
-              />
+        <div className="p-4 sm:p-6 bg-white rounded-lg shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-semibold text-primary flex items-center gap-2">
+              <Filter size={18} />
+              Filters
+            </h3>
+            <div className="flex items-center gap-3">
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center space-x-1 px-3 py-1.5 text-sm text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                >
+                  <X size={14} />
+                  <span>Clear All</span>
+                </button>
+              )}
               <button
-                onClick={() => handleSearch(searchTerm, true)}
-                disabled={searching}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-primary disabled:opacity-50 transition-colors"
-                title="Search"
-                aria-label="Search Button"
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center space-x-2 text-gray-600 transition-colors hover:text-primary"
               >
-                {searching ? (
-                  <LoadingSpinner size="small" className="text-primary" />
-                ) : (
-                  <Search size={18} />
-                )}
+                <Filter size={16} />
+                <span>{showFilters ? 'Hide' : 'Show'} Filters</span>
               </button>
             </div>
-            <button
-              onClick={() => setShowFilters((prev) => !prev)}
-              className="flex items-center px-4 py-2 space-x-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors whitespace-nowrap"
-              aria-label="Toggle Filters"
-            >
-              <Filter size={16} />
-              <span>Filters</span>
-            </button>
-            {hasActiveFilters && (
-              <button
-                onClick={clearFilters}
-                className="flex items-center px-4 py-2 space-x-2 text-gray-600 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors whitespace-nowrap"
-                aria-label="Clear Filters"
-              >
-                <X size={16} />
-                <span>Clear</span>
-              </button>
-            )}
           </div>
 
           {showFilters && (
-            <div className="grid grid-cols-1 gap-4 pt-4 mt-4 border-t border-gray-200 sm:grid-cols-2">
-              <select
-                value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-                className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
-                aria-label="Filter by Status"
-              >
-                <option value="">All Status</option>
-                {STATUSES.map((status) => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
-              <select
-                value={filters.source}
-                onChange={(e) => handleFilterChange('source', e.target.value)}
-                className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
-                aria-label="Filter by Source"
-              >
-                <option value="">All Sources</option>
-                {SOURCES.map((source) => (
-                  <option key={source} value={source}>{source}</option>
-                ))}
-              </select>
+            <div className="space-y-6">
+              {/* Search and Main Selects */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="md:col-span-2 relative">
+                  <input
+                    type="text"
+                    placeholder="Search by name, email, phone..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      handleSearch(e.target.value, false);
+                    }}
+                    className="w-full py-2 pl-10 pr-4 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  />
+                  <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                </div>
+                <select
+                  value={filters.status}
+                  onChange={(e) => handleFilterChange('status', e.target.value)}
+                  className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary transition-all bg-white"
+                >
+                  <option value="">All Status</option>
+                  {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <select
+                  value={filters.source}
+                  onChange={(e) => handleFilterChange('source', e.target.value)}
+                  className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary transition-all bg-white"
+                >
+                  <option value="">All Sources</option>
+                  {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+
+              {/* Detailed Grid Filters */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                <select
+                  value={filters.userType}
+                  onChange={(e) => handleFilterChange('userType', e.target.value)}
+                  className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary transition-all bg-white"
+                >
+                  <option value="">All User Types</option>
+                  {userTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+
+                <select
+                  value={filters.role}
+                  onChange={(e) => handleFilterChange('role', e.target.value)}
+                  className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary transition-all bg-white"
+                >
+                  <option value="">All Roles</option>
+                  {['Customer', 'Dealer', 'Architect', 'Admin'].map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+
+
+
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={filters.startDate}
+                    onChange={(e) => handleFilterChange('startDate', e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary transition-all text-sm"
+                  />
+                  <Calendar className="absolute left-3 top-2.5 text-gray-400" size={16} />
+                  <span className="absolute -top-2 left-2 px-1 bg-white text-[10px] text-gray-500">From</span>
+                </div>
+
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={filters.endDate}
+                    onChange={(e) => handleFilterChange('endDate', e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary transition-all text-sm"
+                  />
+                  <Calendar className="absolute left-3 top-2.5 text-gray-400" size={16} />
+                  <span className="absolute -top-2 left-2 px-1 bg-white text-[10px] text-gray-500">To</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Active Filter Chips */}
+          {hasActiveFilters && (
+            <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-100">
+              <span className="text-sm font-medium text-gray-500 mr-2">Active filters:</span>
+              {Object.entries(filters).map(([key, value]) => {
+                if (!value || key === 'search') return null;
+
+                let displayValue = value;
+                if (key === 'userType') {
+                  const type = userTypes.find(t => t.id.toString() === value.toString());
+                  displayValue = type ? type.name : value;
+                }
+
+                const chipStyles = {
+                  status: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+                  priority: 'bg-red-50 text-red-700 border-red-200',
+                  role: 'bg-purple-50 text-purple-700 border-purple-200',
+                  source: 'bg-blue-50 text-blue-700 border-blue-200',
+                  default: 'bg-gray-50 text-gray-700 border-gray-200'
+                };
+                const style = chipStyles[key] || chipStyles.default;
+
+                return (
+                  <div key={key} className={`flex items-center px-3 py-1 rounded-full border text-xs font-medium ${style}`}>
+                    <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                    <span className="ml-1">{displayValue}</span>
+                    <button
+                      onClick={() => handleFilterChange(key, '')}
+                      className="ml-2 hover:opacity-70 transition-opacity"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
       )}
 
       {/* Table Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {appointments.length === 0 ? (
           <EmptyState onRefresh={() => fetchAppointments(false)} isStaff={isStaff} />
         ) : (
@@ -587,12 +758,14 @@ const VideoCallAppointmentsList = ({ currentUser }) => {
               setSelectedAppointment(appointment);
               setShowDetailsModal(true);
             }}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            totalItems={totalItems}
-            className="min-w-full"
-            aria-label="Appointments Table"
+            loading={refreshing || searching}
+            pagination={{
+              currentPage: currentPage,
+              totalPages: totalPages,
+              onPageChange: setCurrentPage,
+              totalItems: totalItems,
+              itemsPerPage: pageSize,
+            }}
           />
         )}
       </div>
