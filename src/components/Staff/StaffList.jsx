@@ -379,17 +379,16 @@ const StaffList = ({ currentUser, onToast }) => {
                         >
                           <ChevronLeft size={16} />
                         </button>
-                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                          const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                        {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
+                          const page = Math.max(1, Math.min(totalPages - 2, currentPage - 1)) + i;
                           return (
                             <button
                               key={page}
                               onClick={() => handlePageChange(page)}
-                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                page === currentPage
+                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${page === currentPage
                                   ? 'z-10 bg-primary border-primary text-white'
                                   : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                              }`}
+                                }`}
                             >
                               {page}
                             </button>

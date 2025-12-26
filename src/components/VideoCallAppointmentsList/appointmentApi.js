@@ -77,13 +77,35 @@ const appointmentApi = {
     }
   },
 
-  async getAllAppointments({ page = 1, limit = 10, status = '', search = '', includeNotes = false } = {}) {
+  async getAllAppointments({
+    page = 1,
+    limit = 10,
+    status = '',
+    search = '',
+    priority = '',
+    startDate = '',
+    endDate = '',
+    userType = '',
+    state = '',
+    city = '',
+    role = '',
+    pincode = '',
+    includeNotes = false
+  } = {}) {
     try {
       const query = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
         ...(status && { status }),
         ...(search && { search }),
+        ...(priority && { priority }),
+        ...(startDate && { startDate }),
+        ...(endDate && { endDate }),
+        ...(userType && { userType: userType.toString() }),
+        ...(state && { state }),
+        ...(city && { city }),
+        ...(role && { role }),
+        ...(pincode && { pincode }),
         ...(includeNotes && { includeNotes: 'true' }),
       });
       return await apiFetchWithAuth(`${API_BASE_URL}/video-call-enquiries/all?${query}`, {

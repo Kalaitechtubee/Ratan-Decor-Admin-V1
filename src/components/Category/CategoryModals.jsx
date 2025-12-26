@@ -1,22 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { toast } from 'react-toastify';
-import { Helmet } from 'react-helmet-async';
-import {
-  getCategories,
-  getSubCategories,
-  createCategory,
-  createSubCategory,
-  updateCategory,
-  deleteCategory,
-  isAuthenticated,
-  getCurrentUser,
-  deleteCategoryWithProductMove,
-  getCategoriesForSelection,
-  prepareCategoryFormData,
-  validateCategoryData,
-} from '../../services/Api';
+import React, { useState } from 'react';
+import { Layout, Move, AlertTriangle } from 'lucide-react';
 
-// CategoryModals Component
 const CategoryModals = ({
   showCategorySelector,
   setShowCategorySelector,
@@ -43,57 +27,64 @@ const CategoryModals = ({
   if (!showCategorySelector || !categoryToDelete) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-2xl animate-slide-up">
-        <div className="mb-4">
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">
-            Move {categoryToDelete.activeProductsCount} Products from "{categoryToDelete.name}"
-          </h3>
-          <p className="text-gray-600">
-            Select a target category to move the products to before deletion:
-          </p>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+      <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-start gap-4 mb-6">
+          <div className="p-3 bg-yellow-100 rounded-xl">
+            <AlertTriangle className="w-8 h-8 text-yellow-600" />
+          </div>
+          <div>
+            <h3 className="text-xl font-bold text-gray-900 mb-1">
+              Relocate Products
+            </h3>
+            <p className="text-gray-500 text-sm leading-relaxed">
+              Category "<span className="font-semibold text-gray-700">{categoryToDelete.name}</span>" has <span className="font-bold text-primary">{categoryToDelete.activeProductsCount}</span> active products. Please select a target category to move them to before deletion.
+            </p>
+          </div>
         </div>
 
-        <div className="mb-6">
-          <label className="block mb-2 text-sm font-medium text-gray-700">
+        <div className="mb-8">
+          <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
             Target Category
           </label>
-          <select
-            value={selectedCategoryId}
-            onChange={(e) => setSelectedCategoryId(e.target.value)}
-            className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-red-100 transition-colors duration-200"
-          >
-            <option value="">Select a category</option>
-            {availableCategories.map(cat => (
-              <option key={cat.id} value={cat.id}>
-                {cat.fullName} ({cat.productCount} products)
-              </option>
-            ))}
-          </select>
-          <p className="mt-2 text-xs text-gray-500">
-            Products will be moved to the selected category before deletion
-          </p>
+          <div className="relative">
+            <Layout className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <select
+              value={selectedCategoryId}
+              onChange={(e) => setSelectedCategoryId(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none appearance-none text-gray-900"
+            >
+              <option value="">Choose a destination...</option>
+              {availableCategories.map(cat => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.fullName} ({cat.productCount} items)
+                </option>
+              ))}
+            </select>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+              <Move className="w-4 h-4 text-gray-300" />
+            </div>
+          </div>
         </div>
 
-        <div className="flex justify-end space-x-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={handleClose}
-            className="px-6 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200 font-medium"
+            className="flex-1 px-6 py-3.5 text-sm font-bold text-gray-500 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all font-roboto"
           >
             Cancel
           </button>
           <button
             onClick={() => handleSelect(selectedCategoryId)}
             disabled={!selectedCategoryId}
-            className="px-6 py-2 text-white bg-primary rounded-lg hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 font-medium"
+            className="flex-1 px-6 py-3.5 text-sm font-bold text-white bg-primary rounded-xl hover:bg-red-600 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary/20 font-roboto"
           >
-            Move and Delete
+            Relocate & Delete
           </button>
         </div>
       </div>
     </div>
   );
 };
-
 
 export default CategoryModals;

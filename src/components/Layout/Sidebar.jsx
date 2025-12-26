@@ -64,7 +64,7 @@ const Sidebar = ({ currentPage, userRole, isCollapsed, onToggleCollapse, onLogou
 
   const isActivePage = (path) => {
     return location.pathname === path || (path === '/dashboard' && location.pathname === '/') ||
-           (path === '/contacts' && location.pathname.startsWith('/contacts/'));
+      (path === '/contacts' && location.pathname.startsWith('/contacts/'));
   };
 
   const isSubItemActive = (subItems) => {
@@ -100,9 +100,8 @@ const Sidebar = ({ currentPage, userRole, isCollapsed, onToggleCollapse, onLogou
 
   return (
     <div
-      className={`bg-white shadow-lg transition-all duration-300 flex flex-col h-screen ${
-        isCollapsed ? 'w-16' : 'w-64'
-      } font-roboto animate-fade-in-left`}
+      className={`bg-white shadow-lg transition-all duration-300 flex flex-col h-screen ${isCollapsed ? 'w-16' : 'w-64'
+        } font-roboto`}
     >
       {/* Header */}
       <div className="p-4 border-b border-gray-200 flex-shrink-0">
@@ -149,11 +148,10 @@ const Sidebar = ({ currentPage, userRole, isCollapsed, onToggleCollapse, onLogou
                 <>
                   <button
                     onClick={() => toggleDropdown(item.id)}
-                    className={`w-full flex items-center px-3 py-2 rounded-lg transition-all duration-200 ${
-                      isSubItemActive(item.subItems)
+                    className={`w-full flex items-center px-3 py-2 rounded-lg transition-all duration-200 ${isSubItemActive(item.subItems)
                         ? 'bg-red-50 text-primary border-r-2 border-primary'
                         : 'text-gray-600 hover:bg-gray-50 hover:text-primary'
-                    }`}
+                      }`}
                     title={isCollapsed ? item.label : undefined}
                     aria-label={`Toggle ${item.label} dropdown`}
                   >
@@ -173,11 +171,10 @@ const Sidebar = ({ currentPage, userRole, isCollapsed, onToggleCollapse, onLogou
                         <li key={subItem.id}>
                           <button
                             onClick={() => handleNavigation(subItem.path)}
-                            className={`w-full flex items-center px-3 py-1 rounded-lg transition-all duration-200 ${
-                              isActivePage(subItem.path)
+                            className={`w-full flex items-center px-3 py-1 rounded-lg transition-all duration-200 ${isActivePage(subItem.path)
                                 ? 'bg-red-50 text-primary'
                                 : 'text-gray-600 hover:bg-gray-50 hover:text-primary'
-                            }`}
+                              }`}
                             title={subItem.label}
                             aria-label={`Navigate to ${subItem.label}`}
                           >
@@ -194,11 +191,10 @@ const Sidebar = ({ currentPage, userRole, isCollapsed, onToggleCollapse, onLogou
               ) : (
                 <button
                   onClick={() => handleNavigation(item.path)}
-                  className={`w-full flex items-center px-3 py-2 rounded-lg transition-all duration-200 ${
-                    isActivePage(item.path)
+                  className={`w-full flex items-center px-3 py-2 rounded-lg transition-all duration-200 ${isActivePage(item.path)
                       ? 'bg-red-50 text-primary border-r-2 border-primary'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-primary'
-                  }`}
+                    }`}
                   title={isCollapsed ? item.label : undefined}
                   aria-label={`Navigate to ${item.label}`}
                 >
@@ -218,11 +214,10 @@ const Sidebar = ({ currentPage, userRole, isCollapsed, onToggleCollapse, onLogou
       {/* Footer - Fixed at bottom */}
       <div className="p-2 border-t border-gray-200 flex-shrink-0">
         <div className="space-y-1">
-     
+
           <button
             onClick={handleLogout}
-            className={`w-full flex items-center px-3 py-2 rounded-lg text-primary hover:bg-red-50 transition-colors ${
-              isCollapsed ? 'justify-center' : ''}`}
+            className={`w-full flex items-center px-3 py-2 rounded-lg text-primary hover:bg-red-50 transition-colors ${isCollapsed ? 'justify-center' : ''}`}
             aria-label="Logout"
           >
             <LogOut size={20} className="text-primary" />

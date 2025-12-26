@@ -15,20 +15,72 @@ import {
   prepareCategoryFormData,
   validateCategoryData,
 } from '../../services/Api';
+import {
+  Plus,
+  Search,
+  Filter,
+  X,
+  RefreshCw,
+  Eye,
+  Edit,
+  Trash2,
+  Layout,
+  Layers,
+  Package,
+  ChevronRight,
+  ChevronLeft,
+  Image as ImageIcon,
+  AlertCircle
+} from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import CategoryTable from './CategoryTable';
 import CategoryModals from './CategoryModals';
 
 // Category Component - Redesigned with tabbed interface and table view
 const Category = ({ currentUser }) => {
-  // State management
+  const [searchParams, setSearchParams] = useSearchParams();
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Tab management
-  const [activeTab, setActiveTab] = useState('categories'); // 'categories' or 'subcategories'
+  // Stats summary
+  const [summary, setSummary] = useState({
+    totalCategories: 0,
+    totalSubcategories: 0,
+    totalProducts: 0
+  });
+
+  // URL-driven states
+  const activeTab = searchParams.get('tab') || 'categories';
+  const searchTerm = searchParams.get('search') || '';
+  const currentPage = parseInt(searchParams.get('page')) || 1;
+
+  const setActiveTab = (tab) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('tab', tab);
+    params.set('page', '1');
+    if (tab === 'categories') {
+      setSelectedCategory(null);
+      params.delete('parentId');
+    }
+    setSearchParams(params);
+  };
+
+  const setSearchTerm = (value) => {
+    const params = new URLSearchParams(searchParams);
+    if (value) params.set('search', value);
+    else params.delete('search');
+    params.set('page', '1');
+    setSearchParams(params);
+  };
+
+  const setPage = (page) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('page', page.toString());
+    setSearchParams(params);
+  };
 
   // Form states for main category
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -60,10 +112,9 @@ const Category = ({ currentUser }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [modalType, setModalType] = useState('category'); // 'category' or 'subcategory'
 
-  // Search and filter states
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+  // Selection state
   const [selectedItems, setSelectedItems] = useState([]);
+  const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
 
   const isFetchingRef = useRef(false);
 
@@ -71,6 +122,11 @@ const Category = ({ currentUser }) => {
   const [showCategorySelector, setShowCategorySelector] = useState(false);
   const [availableCategories, setAvailableCategories] = useState([]);
   const [categoryToDelete, setCategoryToDelete] = useState(null);
+
+  const handlePageChange = (newPage) => {
+    if (newPage < 1 || newPage > pagination.totalPages) return;
+    setPage(newPage);
+  };
 
   // Memoized validation
   const isFormValid = useMemo(() => {
@@ -224,33 +280,22 @@ const Category = ({ currentUser }) => {
   }, []);
 
   useEffect(() => {
+    const parentIdFromUrl = searchParams.get('parentId');
+    if (activeTab === 'subcategories') {
+      if (parentIdFromUrl && (!selectedCategory || selectedCategory.id !== parseInt(parentIdFromUrl))) {
+        const cat = categories.find(c => c.id === parseInt(parentIdFromUrl));
+        if (cat) setSelectedCategory(cat);
+      }
+    }
+  }, [searchParams, categories, activeTab, selectedCategory]);
+
+  useEffect(() => {
     if (activeTab === 'subcategories' && selectedCategory) {
-      // Get subcategories from the selected category's subCategories array
-      const subs = selectedCategory.subCategories || [];
-      setSubcategories(subs);
-      
-      // Update pagination for subcategories
-      const itemsPerPage = 10;
-      const totalPages = Math.ceil(subs.length / itemsPerPage);
-      const startIndex = (pagination.currentPage - 1) * itemsPerPage;
-      const endIndex = startIndex + itemsPerPage;
-      const paginatedSubcats = subs.slice(startIndex, endIndex);
-      
-      setSubcategories(paginatedSubcats);
-      setPagination(prev => ({ 
-        ...prev, 
-        totalPages,
-        totalItems: subs.length,
-        itemsPerPage
-      }));
-      
-      console.log(`Category: Loaded ${paginatedSubcats.length} subcategories for category ID ${selectedCategory.id}`);
+      fetchSubcategories(selectedCategory.id, currentPage);
     } else {
       setSubcategories([]);
-      setPagination(prev => ({ ...prev, currentPage: 1, totalItems: 0 }));
-      console.log('Category: No category selected, cleared subcategories');
     }
-  }, [selectedCategory, activeTab, pagination.currentPage]);
+  }, [selectedCategory, activeTab, currentPage]);
 
   useEffect(() => {
     if (newCategoryName) {
@@ -290,10 +335,29 @@ const Category = ({ currentUser }) => {
     setError(null);
     try {
       console.log('Category: Fetching categories...');
-      const response = await getCategories();
+      const response = await getCategories({ includeSubcategories: true });
       if (response.success) {
         setCategories(response.categories || []);
-        console.log(`Category: Loaded ${response.categories?.length || 0} categories:`, response.categories);
+
+        // Calculate totals
+        const cats = response.categories || [];
+        let totalSub = 0;
+        let totalProd = 0;
+        cats.forEach(c => {
+          totalSub += (c.subCategories?.length || 0);
+          totalProd += (c.productCount || 0);
+          c.subCategories?.forEach(sc => {
+            totalProd += (sc.productCount || 0);
+          });
+        });
+
+        setSummary({
+          totalCategories: cats.length,
+          totalSubcategories: totalSub,
+          totalProducts: totalProd
+        });
+
+        console.log(`Category: Loaded ${cats.length} categories`);
       } else {
         throw new Error(response.message || 'Failed to fetch categories');
       }
@@ -308,12 +372,12 @@ const Category = ({ currentUser }) => {
 
   const fetchSubcategories = useCallback(async (parentId, page = 1) => {
     if (!parentId) return;
-    
+
     setLoading(true);
     try {
       console.log(`Category: Fetching subcategories for parent ID: ${parentId}, page: ${page}`);
       const response = await getSubCategories(parentId, { page, limit: 10 });
-      
+
       if (response.success) {
         setSubcategories(response.subcategories || []);
         setPagination({
@@ -341,7 +405,7 @@ const Category = ({ currentUser }) => {
       console.log('Category: Create category aborted: Not admin/manager or form invalid');
       return;
     }
-    
+
     setItemLoading('create-category', true);
     try {
       const categoryData = {
@@ -359,7 +423,7 @@ const Category = ({ currentUser }) => {
       const formData = prepareCategoryFormData(categoryData, true);
       console.log('Category: Creating category with data:', categoryData);
       const response = await createCategory(formData);
-      
+
       if (response.success) {
         setNewCategoryName('');
         clearImage(false);
@@ -382,7 +446,7 @@ const Category = ({ currentUser }) => {
       console.log('Category: Create subcategory aborted: Not admin/manager or form invalid');
       return;
     }
-    
+
     setItemLoading('create-subcategory', true);
     try {
       const subcategoryData = {
@@ -392,12 +456,12 @@ const Category = ({ currentUser }) => {
 
       console.log('Category: Creating subcategory with data:', subcategoryData);
       const response = await createSubCategory(selectedCategory.id, subcategoryData);
-      
+
       if (response.success) {
         setNewSubcategoryName('');
         setShowCreateModal(false);
         await fetchCategories();
-        
+
         // Update selected category with refreshed data
         const updatedCategories = await getCategories();
         if (updatedCategories.success) {
@@ -427,7 +491,7 @@ const Category = ({ currentUser }) => {
       console.log('Category: Update category aborted: Not admin/manager or form invalid');
       return;
     }
-    
+
     setItemLoading(`update-${editCategoryId}`, true);
     try {
       const category = [...categories, ...getAllSubcategories].find(c => c.id === editCategoryId);
@@ -452,14 +516,14 @@ const Category = ({ currentUser }) => {
       const formData = prepareCategoryFormData(updateData, !isSubcategory);
       console.log('Category: Updating category ID:', editCategoryId, 'with data:', updateData);
       const response = await updateCategory(editCategoryId, formData);
-      
+
       if (response.success) {
         setShowEditModal(false);
         setEditCategoryId(null);
         setEditCategoryName('');
         clearImage(true);
         await fetchCategories();
-        
+
         // Update selected if it was the edited one
         if (selectedCategory?.id === editCategoryId) {
           const updatedCategories = await getCategories();
@@ -704,19 +768,14 @@ const Category = ({ currentUser }) => {
   };
 
   const handleViewSubcategories = (category) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('tab', 'subcategories');
+    params.set('parentId', category.id.toString());
+    params.set('page', '1');
+    setSearchParams(params);
     setSelectedCategory(category);
-    setActiveTab('subcategories');
-    // Reset pagination when switching to subcategories
-    setPagination(prev => ({ ...prev, currentPage: 1 }));
   };
 
-  const handlePageChange = (newPage) => {
-    if (newPage < 1 || newPage > pagination.totalPages) return;
-    setPagination(prev => ({ ...prev, currentPage: newPage }));
-    if (selectedCategory && activeTab === 'subcategories') {
-      fetchSubcategories(selectedCategory.id, newPage);
-    }
-  };
 
   return (
     <div className="p-6 mx-auto max-w-7xl font-roboto">
@@ -727,9 +786,50 @@ const Category = ({ currentUser }) => {
       </Helmet>
 
       {/* Header */}
-      <div className="mb-8 animate-fade-in-left">
-        <h1 className="mb-3 text-4xl font-bold text-gray-800">Category Management</h1>
-        <p className="text-lg text-gray-600">Organize and manage your product categories efficiently</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-primary">Category Management</h1>
+          <p className="text-gray-600">Organize and manage your product categories efficiently</p>
+        </div>
+        <div className="flex space-x-3">
+          {isAdminOrManager && (
+            <button
+              onClick={() => openCreateModal('category')}
+              className="flex items-center px-4 py-2 space-x-2 text-white rounded-lg bg-primary hover:bg-red-600 transition-colors shadow-sm"
+            >
+              <Plus size={16} />
+              <span>Add Category</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        {[
+          { label: 'Total Categories', icon: Layout, color: 'blue', value: summary.totalCategories },
+          { label: 'Total Subcategories', icon: Layers, color: 'purple', value: summary.totalSubcategories },
+          { label: 'Total Products', icon: Package, color: 'green', value: summary.totalProducts },
+        ].map((stat) => {
+          const Icon = stat.icon;
+          const colors = {
+            blue: { bg: 'bg-blue-100', text: 'text-blue-600' },
+            purple: { bg: 'bg-purple-100', text: 'text-purple-600' },
+            green: { bg: 'bg-green-100', text: 'text-green-600' },
+          };
+          const c = colors[stat.color] || colors.blue;
+          return (
+            <div key={stat.label} className="p-4 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+              <div className={`p-3 ${c.bg} rounded-xl`}>
+                <Icon className={`w-6 h-6 ${c.text}`} />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                <p className="text-sm text-gray-500">{stat.label}</p>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Tab Navigation */}
@@ -741,25 +841,21 @@ const Category = ({ currentUser }) => {
                 setActiveTab('categories');
                 setSelectedCategory(null);
               }}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'categories'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-all ${activeTab === 'categories'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               Main Categories ({categories.length})
             </button>
             <button
               onClick={() => {
-                if (selectedCategory) {
-                  setActiveTab('subcategories');
-                }
+                if (selectedCategory) setActiveTab('subcategories');
               }}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'subcategories'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-all ${activeTab === 'subcategories'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
               disabled={!selectedCategory}
             >
               Subcategories ({selectedCategory ? (selectedCategory.subCategories?.length || 0) : 0})
@@ -772,17 +868,23 @@ const Category = ({ currentUser }) => {
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-4">
           {/* Search */}
-          <div className="relative">
+          <div className="relative group">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
             <input
               type="text"
-              placeholder="Search categories..."
+              placeholder={`Search ${activeTab}...`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="pl-10 pr-10 py-2 w-full sm:w-64 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none text-sm"
             />
-            <svg className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-            </svg>
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
 
           {/* Bulk Actions */}
@@ -926,23 +1028,25 @@ const Category = ({ currentUser }) => {
 
       {/* Pagination Controls */}
       {activeTab === 'subcategories' && pagination.totalPages > 1 && (
-        <div className="flex justify-center items-center mt-6 space-x-2">
+        <div className="flex justify-center items-center mt-8 space-x-3">
           <button
-            onClick={() => handlePageChange(pagination.currentPage - 1)}
-            disabled={pagination.currentPage === 1 || loading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg disabled:bg-gray-100 disabled:text-gray-400 hover:bg-gray-50"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1 || loading}
+            className="flex items-center space-x-2 px-4 py-2 text-sm font-bold text-gray-500 bg-white border border-gray-200 rounded-xl disabled:bg-gray-50 disabled:text-gray-300 hover:bg-gray-50 transition-all"
           >
-            Previous
+            <ChevronLeft size={16} />
+            <span>Previous</span>
           </button>
-          <span className="text-sm text-gray-700">
-            Page {pagination.currentPage} of {pagination.totalPages}
-          </span>
+          <div className="flex items-center px-4 py-2 bg-gray-50 rounded-xl text-xs font-black text-gray-400 uppercase tracking-widest border border-gray-100 italic">
+            Page <span className="text-primary mx-1">{currentPage}</span> of {pagination.totalPages || 1}
+          </div>
           <button
-            onClick={() => handlePageChange(pagination.currentPage + 1)}
-            disabled={pagination.currentPage === pagination.totalPages || loading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg disabled:bg-gray-100 disabled:text-gray-400 hover:bg-gray-50"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === pagination.totalPages || loading}
+            className="flex items-center space-x-2 px-4 py-2 text-sm font-bold text-gray-500 bg-white border border-gray-200 rounded-xl disabled:bg-gray-50 disabled:text-gray-300 hover:bg-gray-50 transition-all font-roboto"
           >
-            Next
+            <span>Next</span>
+            <ChevronRight size={16} />
           </button>
         </div>
       )}
@@ -959,11 +1063,9 @@ const Category = ({ currentUser }) => {
                 </h3>
                 <button
                   onClick={closeModals}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg"
                 >
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
+                  <X size={20} />
                 </button>
               </div>
 
@@ -1031,32 +1133,35 @@ const Category = ({ currentUser }) => {
                   )}
 
                   {nameError && (
-                    <div className="flex items-center p-2 text-sm text-red-700 bg-red-100 rounded-lg">
-                      <svg className="mr-2 w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                      </svg>
-                      {nameError}
+                    <div className="flex items-center gap-2 p-3 text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl animate-in fade-in slide-in-from-top-1">
+                      <AlertCircle size={16} />
+                      <span>{nameError}</span>
                     </div>
                   )}
 
-                  <div className="flex justify-end space-x-3 pt-4">
+                  <div className="flex gap-3 pt-6">
                     <button
                       type="button"
                       onClick={closeModals}
-                      className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                      className="flex-1 px-6 py-3 text-sm font-bold text-gray-500 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all font-roboto"
                       disabled={operationLoading[showCreateModal ? `create-${modalType}` : `update-${editCategoryId}`]}
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 text-white bg-primary rounded-lg hover:bg-red-600 disabled:bg-red-400 transition-colors"
+                      className="flex-1 px-6 py-3 text-sm font-bold text-white bg-primary rounded-xl hover:bg-red-600 disabled:bg-gray-100 disabled:text-gray-300 transition-all shadow-lg shadow-primary/20 font-roboto"
                       disabled={
                         operationLoading[showCreateModal ? `create-${modalType}` : `update-${editCategoryId}`] ||
                         !(showCreateModal ? (modalType === 'category' ? isFormValid : isSubcategoryFormValid) : isEditFormValid)
                       }
                     >
-                      {operationLoading[showCreateModal ? `create-${modalType}` : `update-${editCategoryId}`] ? 'Saving...' : (showCreateModal ? 'Create' : 'Update')}
+                      {operationLoading[showCreateModal ? `create-${modalType}` : `update-${editCategoryId}`] ? (
+                        <div className="flex items-center justify-center gap-2 font-roboto">
+                          <RefreshCw size={16} className="animate-spin" />
+                          <span>Saving...</span>
+                        </div>
+                      ) : (showCreateModal ? 'Create' : 'Update')}
                     </button>
                   </div>
                 </div>

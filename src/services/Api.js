@@ -479,20 +479,31 @@ export const updateProfile = async (userData) => {
 };
 
 // User API Functions
-export const getAllUsers = async ({ page = 1, limit = 10, search, role, status, userTypeName }) => {
-  const validRoles = ['customer', 'architect', 'dealer', 'admin', 'manager', 'sales', 'support'];
-  const validStatuses = ['Pending', 'Approved', 'Rejected'];
-  validateInput({ page, limit }, ['page', 'limit'], { validRoles, validStatuses });
-
-  const normalizedRole = role ? role.toLowerCase() : undefined;
-
+export const getAllUsers = async ({
+  page = 1,
+  limit = 10,
+  search,
+  role,
+  status,
+  userTypeName,
+  startDate,
+  endDate,
+  state,
+  city,
+  pincode
+}) => {
   const params = new URLSearchParams({
     page,
     limit,
     ...(search && { search }),
-    ...(normalizedRole && { role: normalizedRole }),
+    ...(role && { role: role.toLowerCase() }),
     ...(status && { status }),
     ...(userTypeName && { userTypeName }),
+    ...(startDate && { startDate }),
+    ...(endDate && { endDate }),
+    ...(state && { state }),
+    ...(city && { city }),
+    ...(pincode && { pincode }),
   });
 
   const data = await apiFetch(`${USERS_ENDPOINT}?${params.toString()}`, {
@@ -502,6 +513,7 @@ export const getAllUsers = async ({ page = 1, limit = 10, search, role, status, 
   return {
     success: true,
     users: data.data || [],
+    summary: data.summary,
     pagination: {
       currentPage: data.pagination?.currentPage || 1,
       totalPages: data.pagination?.totalPages || 1,
@@ -510,19 +522,30 @@ export const getAllUsers = async ({ page = 1, limit = 10, search, role, status, 
     },
   };
 };
-export const getAllStaffUsers = async ({ page = 1, limit = 10, search, role, status }) => {
-  const validRoles = ['Manager', 'Sales', 'Support', 'Admin'];
-  const validStatuses = ['Pending', 'Approved', 'Rejected'];
-  validateInput({ page, limit }, ['page', 'limit'], { validRoles, validStatuses });
 
-  const normalizedRole = role ? role.toLowerCase() : undefined;
-
+export const getAllStaffUsers = async ({
+  page = 1,
+  limit = 10,
+  search,
+  role,
+  status,
+  startDate,
+  endDate,
+  state,
+  city,
+  pincode
+}) => {
   const params = new URLSearchParams({
     page,
     limit,
     ...(search && { search }),
-    ...(normalizedRole && { role: normalizedRole }),
+    ...(role && { role: role.toLowerCase() }),
     ...(status && { status }),
+    ...(startDate && { startDate }),
+    ...(endDate && { endDate }),
+    ...(state && { state }),
+    ...(city && { city }),
+    ...(pincode && { pincode }),
     staffOnly: true,
   });
 
@@ -530,7 +553,10 @@ export const getAllStaffUsers = async ({ page = 1, limit = 10, search, role, sta
     method: 'GET',
   });
 
-  return data;
+  return {
+    ...data,
+    summary: data.summary
+  };
 };
 
 export const getStaffUserById = async (id) => {
@@ -690,8 +716,8 @@ export const getProducts = async ({
       products,
       pagination: {
         total: data.count || 0,
-        totalPages: data.totalPages || 1,
-        currentPage: data.currentPage || 1,
+        totalPages: data.pagination?.totalPages || 1,
+        currentPage: data.pagination?.currentPage || 1,
       },
       userType: data.userType,
       userRole: data.userRole,

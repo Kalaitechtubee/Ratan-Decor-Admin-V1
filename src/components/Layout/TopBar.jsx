@@ -17,8 +17,8 @@ const TopBar = ({ userRole, onMobileMenuToggle, currentUser, onLogout }) => {
   };
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 px-4 py-3 font-roboto animate-fade-in-left">
-      <div className="flex items-center justify-between max-w-screen-xl mx-auto">
+    <header className="bg-white px-4 py-3 font-roboto">
+      <div className="flex items-center justify-between w-full px-2">
         {/* Mobile menu button */}
         <button
           onClick={onMobileMenuToggle}

@@ -239,14 +239,14 @@ export const createEnquiry = async (enquiryData) => {
   }
 };
 
-export const getAllEnquiries = async ({ page = 1, limit = 10, search, status, source, userType, state, city, role, pincode, includeNotes = false }) => {
+export const getAllEnquiries = async ({ page = 1, limit = 10, search, status, source, userType, state, city, role, pincode, priority, startDate, endDate, includeNotes = false }) => {
   try {
     const validStatuses = ['New', 'InProgress', 'Confirmed', 'Delivered', 'Rejected'];
     const validSources = ['Email', 'WhatsApp', 'Phone', 'VideoCall'];
 
     validateInput({ page, limit, pincode }, ['page', 'limit'], { validStatuses, validSources, validatePincode: true });
 
-    const params = { page, limit, search, status, source, userType, state, city, role, pincode, includeNotes };
+    const params = { page, limit, search, status, source, userType, state, city, role, pincode, priority, startDate, endDate, includeNotes };
     const cleanParams = Object.fromEntries(
       Object.entries(params).filter(([_, value]) => value !== '' && value !== null && value !== undefined && value !== 'all')
     );
@@ -260,6 +260,7 @@ export const getAllEnquiries = async ({ page = 1, limit = 10, search, status, so
       success: true,
       data: response.data.data || [],
       pagination: response.data.pagination || {},
+      summary: response.data.summary || { totalEnquiries: 0, statusBreakdown: {} },
     };
   } catch (error) {
     console.error('Get all enquiries failed:', error);
