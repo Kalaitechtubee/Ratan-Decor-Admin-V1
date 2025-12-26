@@ -37,12 +37,10 @@ const Category = ({ currentUser }) => {
 
   // Form states for subcategory
   const [newSubcategoryName, setNewSubcategoryName] = useState('');
-  const [newSubcategoryBrandName, setNewSubcategoryBrandName] = useState('');
 
   // Edit states
   const [editCategoryId, setEditCategoryId] = useState(null);
   const [editCategoryName, setEditCategoryName] = useState('');
-  const [editCategoryBrandName, setEditCategoryBrandName] = useState('');
   const [editCategoryImage, setEditCategoryImage] = useState(null);
   const [editCategoryImagePreview, setEditCategoryImagePreview] = useState(null);
   const [editCategoryIsSubcategory, setEditCategoryIsSubcategory] = useState(false);
@@ -389,7 +387,6 @@ const Category = ({ currentUser }) => {
     try {
       const subcategoryData = {
         name: newSubcategoryName.trim(),
-        brandName: newSubcategoryBrandName.trim() || undefined,
         parentId: selectedCategory.id,
       };
 
@@ -398,7 +395,6 @@ const Category = ({ currentUser }) => {
       
       if (response.success) {
         setNewSubcategoryName('');
-        setNewSubcategoryBrandName('');
         setShowCreateModal(false);
         await fetchCategories();
         
@@ -439,7 +435,6 @@ const Category = ({ currentUser }) => {
 
       const updateData = {
         name: editCategoryName.trim(),
-        brandName: editCategoryBrandName.trim() || undefined,
         parentId: category?.parentId || null,
       };
 
@@ -462,7 +457,6 @@ const Category = ({ currentUser }) => {
         setShowEditModal(false);
         setEditCategoryId(null);
         setEditCategoryName('');
-        setEditCategoryBrandName('');
         clearImage(true);
         await fetchCategories();
         
@@ -611,7 +605,6 @@ const Category = ({ currentUser }) => {
       clearImage(false);
     } else {
       setNewSubcategoryName('');
-      setNewSubcategoryBrandName('');
     }
     setNameError(null);
   };
@@ -619,7 +612,6 @@ const Category = ({ currentUser }) => {
   const openEditModal = (category) => {
     setEditCategoryId(category.id);
     setEditCategoryName(category.name);
-    setEditCategoryBrandName(category.brandName || '');
     setEditCategoryIsSubcategory(!!category.parentId);
     setEditCategoryImagePreview(category.imageUrl || null);
     setEditCategoryImage(null);
@@ -633,7 +625,6 @@ const Category = ({ currentUser }) => {
     setShowEditModal(false);
     setEditCategoryId(null);
     setEditCategoryName('');
-    setEditCategoryBrandName('');
     setEditCategoryIsSubcategory(false);
     clearImage(true);
     setNameError(null);
@@ -651,8 +642,7 @@ const Category = ({ currentUser }) => {
     // Filter by search term
     if (searchTerm) {
       items = items.filter(item =>
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.brandName && item.brandName.toLowerCase().includes(searchTerm.toLowerCase()))
+        item.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -999,39 +989,6 @@ const Category = ({ currentUser }) => {
                       disabled={operationLoading[showCreateModal ? `create-${modalType}` : `update-${editCategoryId}`]}
                     />
                   </div>
-
-                  {modalType === 'subcategory' && showCreateModal && (
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-700">
-                        Brand Name (Optional)
-                      </label>
-                      <input
-                        type="text"
-                        value={newSubcategoryBrandName}
-                        onChange={(e) => setNewSubcategoryBrandName(e.target.value)}
-                        placeholder="Enter brand name"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                        disabled={operationLoading['create-subcategory']}
-                      />
-                    </div>
-                  )}
-
-                  {showEditModal && (
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-700">
-                        Brand Name (Optional)
-                      </label>
-                      <input
-                        type="text"
-                        value={editCategoryBrandName}
-                        onChange={(e) => setEditCategoryBrandName(e.target.value)}
-                        placeholder="Enter brand name"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                        disabled={operationLoading[`update-${editCategoryId}`]}
-                      />
-                    </div>
-                  )}
-
                   {modalType === 'category' && (
                     <div>
                       <label className="block mb-2 text-sm font-medium text-gray-700">

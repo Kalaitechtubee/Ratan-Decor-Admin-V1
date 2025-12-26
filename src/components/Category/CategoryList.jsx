@@ -14,19 +14,13 @@ const CategoryList = ({
   setShowCreateForm,
   newCategoryName,
   setNewCategoryName,
-  newCategoryBrandName,
-  setNewCategoryBrandName,
   newCategoryImage,
   newCategoryImagePreview,
   newSubcategoryName,
   setNewSubcategoryName,
-  newSubcategoryBrandName,
-  setNewSubcategoryBrandName,
   editCategoryId,
   editCategoryName,
   setEditCategoryName,
-  editCategoryBrandName,
-  setEditCategoryBrandName,
   editCategoryImage,
   editCategoryImagePreview,
   editCategoryIsSubcategory,
@@ -200,9 +194,6 @@ const CategoryList = ({
               <h3 className={`font-semibold text-lg ${isSelected ? 'text-primary' : 'text-gray-800 group-hover:text-primary'} transition-colors duration-200 font-roboto`}>
                 {category.name}
               </h3>
-              {category.brandName && (
-                <p className="text-sm text-gray-500 mt-1">{category.brandName}</p>
-              )}
               {category.isSubcategory && (
                 <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-primary bg-red-100 rounded-full font-roboto mt-1">
                   Subcategory
@@ -445,7 +436,6 @@ const CategoryList = ({
                       onClick={() => {
                         setShowCreateForm(false);
                         setNewCategoryName('');
-                        setNewCategoryBrandName('');
                         clearImage(false);
                       }}
                       className="px-6 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200 font-medium"
@@ -566,7 +556,6 @@ const CategoryList = ({
                           type="button"
                           onClick={() => {
                             setNewSubcategoryName('');
-                            setNewSubcategoryBrandName('');
                           }}
                           className="px-6 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200 font-medium"
                           disabled={operationLoading['create-subcategory']}
