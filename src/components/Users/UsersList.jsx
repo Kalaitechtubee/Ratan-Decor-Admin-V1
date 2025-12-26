@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { debounce } from 'lodash';
 import { toast } from 'react-toastify';
-import { 
+import {
   Users,
-  Search, 
-  Filter, 
-  Download, 
-  FileText, 
-  CheckCircle, 
-  XCircle, 
+  Search,
+  Filter,
+  Download,
+  FileText,
+  CheckCircle,
+  XCircle,
   AlertCircle,
-  Eye, 
-  Pencil, 
+  Eye,
+  Pencil,
   Trash2,
   ShoppingBag,
   Package,
@@ -31,14 +31,14 @@ import {
   Loader2,
   X
 } from 'lucide-react';
-import { 
-  getAllUsers, 
-  getUserById, 
-  approveUser, 
-  getPendingUsers, 
-  updateUser, 
+import {
+  getAllUsers,
+  getUserById,
+  approveUser,
+  getPendingUsers,
+  updateUser,
   deleteUser,
-  getUserOrderHistory 
+  getUserOrderHistory
 } from '../../services/Api';
 
 // Allowed role/status options shown in filters and edit forms (customer view only)
@@ -228,7 +228,7 @@ const UsersList = () => {
   // Load user order history
   const loadUserOrderHistory = useCallback(async (userId) => {
     if (!userId) return;
-    
+
     try {
       setOrderHistory(prev => ({ ...prev, loading: true, error: null }));
 
@@ -668,11 +668,10 @@ const UsersList = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <Shield className="text-primary mr-2" size={16} />
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              user.role === 'Architect' || user.role === 'Dealer'
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${user.role === 'Architect' || user.role === 'Dealer'
                                 ? 'bg-red-100 text-primary'
                                 : 'bg-gray-100 text-gray-800'
-                            }`}>
+                              }`}>
                               {user.role}
                             </span>
                           </div>
@@ -806,22 +805,39 @@ const UsersList = () => {
                         >
                           <ChevronLeft size={16} />
                         </button>
-                        {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                          const page = Math.max(1, Math.min(pagination.totalPages - 4, pagination.currentPage - 2)) + i;
-                          return (
+                        {(() => {
+                          const pages = [];
+                          const maxVisible = 3;
+                          const totalPages = pagination.totalPages;
+                          const currentPage = pagination.currentPage;
+
+                          if (totalPages <= maxVisible) {
+                            for (let i = 1; i <= totalPages; i++) pages.push(i);
+                          } else {
+                            let startPage = Math.max(1, currentPage - 1);
+                            let endPage = startPage + maxVisible - 1;
+
+                            if (endPage > totalPages) {
+                              endPage = totalPages;
+                              startPage = Math.max(1, endPage - maxVisible + 1);
+                            }
+
+                            for (let i = startPage; i <= endPage; i++) pages.push(i);
+                          }
+
+                          return pages.map((page) => (
                             <button
                               key={page}
                               onClick={() => handlePageChange(page)}
-                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                page === pagination.currentPage
+                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${page === currentPage
                                   ? 'z-10 bg-primary border-primary text-white'
                                   : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                              }`}
+                                }`}
                             >
                               {page}
                             </button>
-                          );
-                        })}
+                          ));
+                        })()}
                         <button
                           onClick={() => handlePageChange(pagination.currentPage + 1)}
                           disabled={pagination.currentPage === pagination.totalPages}
@@ -857,21 +873,19 @@ const UsersList = () => {
                 <div className="flex border-b border-gray-200 mb-6">
                   <button
                     onClick={() => setShowOrderHistory(false)}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 ${
-                      !showOrderHistory
+                    className={`px-4 py-2 text-sm font-medium border-b-2 ${!showOrderHistory
                         ? 'border-primary text-primary'
                         : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
+                      }`}
                   >
                     User Information
                   </button>
                   <button
                     onClick={() => setShowOrderHistory(true)}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 ml-4 ${
-                      showOrderHistory
+                    className={`px-4 py-2 text-sm font-medium border-b-2 ml-4 ${showOrderHistory
                         ? 'border-primary text-primary'
                         : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center space-x-2">
                       <ShoppingBag size={16} />
@@ -912,26 +926,26 @@ const UsersList = () => {
                           <div className="space-y-3">
                             <div>
                               <label className="block mb-1 text-sm text-gray-700">Name</label>
-                              <input 
-                                value={editForm.name} 
-                                onChange={(e)=>setEditForm({...editForm, name:e.target.value})} 
-                                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent" 
+                              <input
+                                value={editForm.name}
+                                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
                               />
                             </div>
                             <div>
                               <label className="block mb-1 text-sm text-gray-700">Email</label>
-                              <input 
-                                value={editForm.email} 
-                                onChange={(e)=>setEditForm({...editForm, email:e.target.value})} 
-                                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent" 
+                              <input
+                                value={editForm.email}
+                                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
                               />
                             </div>
                             <div>
                               <label className="block mb-1 text-sm text-gray-700">Company</label>
-                              <input 
-                                value={editForm.company} 
-                                onChange={(e)=>setEditForm({...editForm, company:e.target.value})} 
-                                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent" 
+                              <input
+                                value={editForm.company}
+                                onChange={(e) => setEditForm({ ...editForm, company: e.target.value })}
+                                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
                               />
                             </div>
                           </div>
@@ -974,9 +988,9 @@ const UsersList = () => {
                           <div className="space-y-3">
                             <div>
                               <label className="block mb-1 text-sm text-gray-700">Role</label>
-                              <select 
-                                value={editForm.role} 
-                                onChange={(e)=>setEditForm({...editForm, role:e.target.value})} 
+                              <select
+                                value={editForm.role}
+                                onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
                                 className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
                               >
                                 <option value="">Select Role</option>
@@ -985,9 +999,9 @@ const UsersList = () => {
                             </div>
                             <div>
                               <label className="block mb-1 text-sm text-gray-700">Status</label>
-                              <select 
-                                value={editForm.status} 
-                                onChange={(e)=>setEditForm({...editForm, status:e.target.value})} 
+                              <select
+                                value={editForm.status}
+                                onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
                                 className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
                               >
                                 <option value="Pending">Pending</option>
@@ -997,17 +1011,17 @@ const UsersList = () => {
                             </div>
                             <div>
                               <label className="block mb-1 text-sm text-gray-700">User Type Id</label>
-                              <input 
-                                value={editForm.userTypeId} 
-                                onChange={(e)=>setEditForm({...editForm, userTypeId:e.target.value})} 
-                                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent" 
+                              <input
+                                value={editForm.userTypeId}
+                                onChange={(e) => setEditForm({ ...editForm, userTypeId: e.target.value })}
+                                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
                               />
                             </div>
                           </div>
                         )}
                       </div>
                     </div>
-                    
+
                     {(selectedUser.status === 'Pending' || selectedUser.status === 'Rejected') && (
                       <div className="pt-4 border-t border-gray-200">
                         <h3 className="mb-3 font-medium text-gray-900">Admin Actions</h3>
@@ -1031,25 +1045,25 @@ const UsersList = () => {
                         </div>
                       </div>
                     )}
-                    
+
                     <div className="pt-4 border-t border-gray-200 flex justify-end space-x-3">
                       {!isEditing ? (
-                        <button 
-                          onClick={()=>setIsEditing(true)} 
+                        <button
+                          onClick={() => setIsEditing(true)}
                           className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                           Edit
                         </button>
                       ) : (
                         <>
-                          <button 
-                            onClick={()=>setIsEditing(false)} 
+                          <button
+                            onClick={() => setIsEditing(false)}
                             className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                           >
                             Cancel
                           </button>
-                          <button 
-                            onClick={handleSaveEdit} 
+                          <button
+                            onClick={handleSaveEdit}
                             disabled={loading}
                             className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-red-700 transition-colors"
                           >
@@ -1108,7 +1122,7 @@ const UsersList = () => {
                         <select
                           className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                           value={orderFilters.status}
-                          onChange={(e) => setOrderFilters({...orderFilters, status: e.target.value, page: 1})}
+                          onChange={(e) => setOrderFilters({ ...orderFilters, status: e.target.value, page: 1 })}
                         >
                           <option value="">All Order Status</option>
                           <option value="Pending">Pending</option>
@@ -1124,7 +1138,7 @@ const UsersList = () => {
                         <select
                           className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                           value={orderFilters.paymentStatus}
-                          onChange={(e) => setOrderFilters({...orderFilters, paymentStatus: e.target.value, page: 1})}
+                          onChange={(e) => setOrderFilters({ ...orderFilters, paymentStatus: e.target.value, page: 1 })}
                         >
                           <option value="">All Payment Status</option>
                           <option value="Pending">Pending</option>
@@ -1244,7 +1258,7 @@ const UsersList = () => {
                           </div>
                           <div className="flex space-x-2">
                             <button
-                              onClick={() => setOrderFilters({...orderFilters, page: orderFilters.page - 1})}
+                              onClick={() => setOrderFilters({ ...orderFilters, page: orderFilters.page - 1 })}
                               disabled={orderFilters.page <= 1}
                               className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
@@ -1254,7 +1268,7 @@ const UsersList = () => {
                               {orderFilters.page} of {orderHistory.pagination.totalPages}
                             </span>
                             <button
-                              onClick={() => setOrderFilters({...orderFilters, page: orderFilters.page + 1})}
+                              onClick={() => setOrderFilters({ ...orderFilters, page: orderFilters.page + 1 })}
                               disabled={orderFilters.page >= orderHistory.pagination.totalPages}
                               className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                             >

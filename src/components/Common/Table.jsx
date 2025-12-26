@@ -53,36 +53,26 @@ function Table({
   // Generate page numbers for pagination
   const generatePageNumbers = () => {
     const pages = [];
-    const maxVisible = 5;
-    
+    const maxVisible = 3;
+
     if (totalPages <= maxVisible) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      if (currentPage <= 3) {
-        for (let i = 1; i <= 4; i++) {
-          pages.push(i);
-        }
-        pages.push('...');
-        pages.push(totalPages);
-      } else if (currentPage >= totalPages - 2) {
-        pages.push(1);
-        pages.push('...');
-        for (let i = totalPages - 3; i <= totalPages; i++) {
-          pages.push(i);
-        }
-      } else {
-        pages.push(1);
-        pages.push('...');
-        pages.push(currentPage - 1);
-        pages.push(currentPage);
-        pages.push(currentPage + 1);
-        pages.push('...');
-        pages.push(totalPages);
+      let startPage = Math.max(1, currentPage - 1);
+      let endPage = startPage + maxVisible - 1;
+
+      if (endPage > totalPages) {
+        endPage = totalPages;
+        startPage = Math.max(1, endPage - maxVisible + 1);
+      }
+
+      for (let i = startPage; i <= endPage; i++) {
+        pages.push(i);
       }
     }
-    
+
     return pages;
   };
 
@@ -108,9 +98,8 @@ function Table({
               {columns.map((column) => (
                 <th
                   key={String(column.key)}
-                  className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
-                    column.sortable ? 'cursor-pointer hover:bg-gray-100' : ''
-                  }`}
+                  className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${column.sortable ? 'cursor-pointer hover:bg-gray-100' : ''
+                    }`}
                   onClick={() => column.sortable && handleSort(column.key)}
                 >
                   <div className="flex items-center space-x-1">
@@ -119,19 +108,17 @@ function Table({
                       <div className="flex flex-col">
                         <ChevronUp
                           size={12}
-                          className={`${
-                            sortBy === column.key && sortOrder === 'asc'
+                          className={`${sortBy === column.key && sortOrder === 'asc'
                               ? 'text-primary'
                               : 'text-gray-400'
-                          }`}
+                            }`}
                         />
                         <ChevronDown
                           size={12}
-                          className={`${
-                            sortBy === column.key && sortOrder === 'desc'
+                          className={`${sortBy === column.key && sortOrder === 'desc'
                               ? 'text-primary'
                               : 'text-gray-400'
-                          }`}
+                            }`}
                         />
                       </div>
                     )}
@@ -144,9 +131,8 @@ function Table({
             {data.map((item) => (
               <tr
                 key={item.id}
-                className={`${
-                  onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''
-                } ${clickedRowId === item.id ? 'opacity-50' : ''}`}
+                className={`${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''
+                  } ${clickedRowId === item.id ? 'opacity-50' : ''}`}
                 onClick={(e) => onRowClick && handleRowClick(item, e)}
               >
                 {columns.map((column) => (
@@ -204,11 +190,10 @@ function Table({
                   <button
                     key={page}
                     onClick={() => onPageChange && onPageChange(page)}
-                    className={`min-w-[40px] px-3 py-2 rounded border text-sm font-medium transition-colors ${
-                      currentPage === page
+                    className={`min-w-[40px] px-3 py-2 rounded border text-sm font-medium transition-colors ${currentPage === page
                         ? 'bg-red-500 text-white border-red-500'
                         : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     {page}
                   </button>

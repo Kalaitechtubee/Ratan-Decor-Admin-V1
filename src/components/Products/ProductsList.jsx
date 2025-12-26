@@ -93,7 +93,9 @@ const ProductsList = () => {
     minDesignNumber: searchParams.get('minDesignNumber') || '',
     maxDesignNumber: searchParams.get('maxDesignNumber') || '',
     minPrice: searchParams.get('minPrice') || '',
+
     maxPrice: searchParams.get('maxPrice') || '',
+    userType: searchParams.get('userType') || '',
   });
 
   const [counts, setCounts] = useState({
@@ -112,7 +114,9 @@ const ProductsList = () => {
       minDesignNumber: searchParams.get('minDesignNumber'),
       maxDesignNumber: searchParams.get('maxDesignNumber'),
       minPrice: searchParams.get('minPrice'),
+
       maxPrice: searchParams.get('maxPrice'),
+      userType: searchParams.get('userType'),
     }).some(v => v !== null && v !== '');
   }, []);
 
@@ -154,7 +158,9 @@ const ProductsList = () => {
       minDesignNumber: filters.minDesignNumber.trim(),
       maxDesignNumber: filters.maxDesignNumber.trim(),
       minPrice: filters.minPrice.trim(),
+
       maxPrice: filters.maxPrice.trim(),
+      userType: filters.userType.trim(),
     };
     const cleanParams = Object.fromEntries(
       Object.entries(params).filter(([_, v]) => v !== '' && v !== undefined)
@@ -174,7 +180,9 @@ const ProductsList = () => {
       minDesignNumber: filters.minDesignNumber.trim() || undefined,
       maxDesignNumber: filters.maxDesignNumber.trim() || undefined,
       minPrice: filters.minPrice.trim() || undefined,
+
       maxPrice: filters.maxPrice.trim() || undefined,
+      userType: filters.userType.trim() || undefined,
     };
 
     // Remove undefined values
@@ -185,13 +193,24 @@ const ProductsList = () => {
     setSearchParams(cleanParams, { replace: true });
   }, [searchTerm, filters, pagination.currentPage, setSearchParams]);
 
-  // Load products function
+  // Request sequence tracker to handle race conditions
+  const fetchIdRef = useRef(0);
+
+  // Load products function - using refs for current state to avoid closure staleness in stable debounce
   const loadProducts = useCallback(async () => {
-    if (isFetchingRef.current || !isMountedRef.current) return;
+    if (!isMountedRef.current) return;
+
+    const currentFetchId = fetchIdRef.current + 1;
+    fetchIdRef.current = currentFetchId;
 
     try {
-      setLoading(true);
+      if (currentFetchId === fetchIdRef.current) setLoading(true); // Only set loading if still latest
       setError(null);
+
+      // Construct params from current state refs or state (using state is fine if function is called fresh)
+      // But for stable debounce, we need to ensure we read LATEST state.
+      // However, since we are moving to a ref-based debounce, we can just use the state directly 
+      // provided we update the ref to this function on every render.
 
       const currentParams = {
         page: pagination.currentPage,
@@ -205,6 +224,7 @@ const ProductsList = () => {
         maxDesignNumber: filters.maxDesignNumber.trim() || undefined,
         minPrice: filters.minPrice.trim() || undefined,
         maxPrice: filters.maxPrice.trim() || undefined,
+        userType: filters.userType.trim() || undefined,
       };
 
       Object.keys(currentParams).forEach(key => {
@@ -213,17 +233,15 @@ const ProductsList = () => {
         }
       });
 
-      if (JSON.stringify(currentParams) === JSON.stringify(lastFetchedParams.current)) {
-        setLoading(false);
-        return;
-      }
-
-      isFetchingRef.current = true;
-      lastFetchedParams.current = currentParams;
-
       console.log('API Request params:', currentParams);
 
       const response = await getProducts(currentParams);
+
+      // Check if this response corresponds to the latest request
+      if (currentFetchId !== fetchIdRef.current) {
+        console.log('Ignoring stale response', { currentFetchId, latest: fetchIdRef.current });
+        return;
+      }
 
       if (response && response.success && Array.isArray(response.products)) {
         setProducts([...response.products]);
@@ -242,16 +260,29 @@ const ProductsList = () => {
         throw new Error('Invalid response format from getProducts');
       }
     } catch (error) {
-      console.error('Error loading products:', error);
-      handleApiError(error, 'Failed to load products');
+      if (currentFetchId === fetchIdRef.current) {
+        console.error('Error loading products:', error);
+        handleApiError(error, 'Failed to load products');
+      }
     } finally {
-      setLoading(false);
-      isFetchingRef.current = false;
+      if (currentFetchId === fetchIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [pagination.currentPage, pagination.limit, searchTerm, filters]);
 
-  // Debounced loadProducts function
-  const debouncedLoadProducts = useCallback(debounce(loadProducts, 300), [loadProducts]);
+  // Stable debounce pattern
+  const loadProductsRef = useRef(loadProducts);
+  useEffect(() => {
+    loadProductsRef.current = loadProducts;
+  }, [loadProducts]);
+
+  const debouncedLoadProducts = useMemo(
+    () => debounce(() => {
+      loadProductsRef.current();
+    }, 300),
+    []
+  );
 
   // Initialize component
   useEffect(() => {
@@ -557,7 +588,9 @@ const ProductsList = () => {
       minDesignNumber: '',
       maxDesignNumber: '',
       minPrice: '',
+
       maxPrice: '',
+      userType: '',
     });
     setPagination(prev => ({ ...prev, currentPage: 1 }));
   };
@@ -781,8 +814,22 @@ const ProductsList = () => {
               value={searchTerm}
               onChange={(e) => handleSearch(e.target.value)}
               onClear={() => handleSearch('')}
-              className="py-2 pr-4 pl-10 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
             />
+          </div>
+
+          <div>
+            <select
+              value={filters.userType}
+              onChange={(e) => handleFilterChange('userType', e.target.value)}
+              className="px-3 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
+            >
+              <option value="">All User Types</option>
+              {userTypes.map((type) => (
+                <option key={type.id} value={type.name}>
+                  {type.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex space-x-2">
             <button
@@ -1002,9 +1049,13 @@ const ProductsList = () => {
         data={products}
         columns={columns}
         onRowClick={(product) => handleViewProduct(product)}
-        currentPage={pagination.currentPage}
-        totalPages={pagination.totalPages}
-        onPageChange={handlePageChange}
+        pagination={{
+          currentPage: pagination.currentPage,
+          totalPages: pagination.totalPages,
+          totalItems: pagination.totalProducts,
+          itemsPerPage: pagination.limit,
+          onPageChange: handlePageChange
+        }}
         loading={loading}
         emptyMessage={hasActiveFilters ? "No products found matching your filters." : "No products available."}
       />

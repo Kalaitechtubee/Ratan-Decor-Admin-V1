@@ -528,10 +528,12 @@ const EnquiriesList = () => {
           onRowClick={(enquiry) => {
             handleViewClick(enquiry);
           }}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-          totalItems={totalItems}
+          pagination={{
+            currentPage: currentPage,
+            totalPages: totalPages,
+            onPageChange: setCurrentPage,
+            totalItems: totalItems,
+          }}
         />
       </div>
 
