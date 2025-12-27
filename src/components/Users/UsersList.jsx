@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { debounce } from 'lodash';
 import { toast } from 'react-toastify';
@@ -319,7 +319,6 @@ const UsersList = () => {
       const fetchUserTypes = async () => {
         try {
           const response = await getUserTypes();
-          // Support both response formats for compatibility
           const types = response.userTypes || response.data || [];
           setUserTypes(types);
         } catch (error) {
@@ -353,7 +352,6 @@ const UsersList = () => {
     }
   }, [pagination.currentPage, debouncedLoadUsers]);
 
-  // Load order history when showing it
   useEffect(() => {
     if (showOrderHistory && selectedUser?.id) {
       loadUserOrderHistory(selectedUser.id);
@@ -1007,43 +1005,67 @@ const UsersList = () => {
         </div>
       )}
 
-      {/* Edit User Modal */}
+      {/* Edit User Modal - NOW WITH CLEAN, MODERN TYPOGRAPHY */}
       {isEditing && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[60]">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-6">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-6">
+            <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">Edit User</h2>
-              <button onClick={() => setIsEditing(false)} className="text-gray-400 hover:text-gray-600 focus:outline-none"><X size={20} /></button>
+              <button onClick={() => setIsEditing(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
             </div>
+
             <div className="space-y-5">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Name</label>
-                <input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none" />
+                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Full Name</label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  className="w-full px-4 py-3 bg-white border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium text-neutral-900"
+                />
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Role</label>
-                  <select value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none">
+                  <label className="block text-xs font-medium text-neutral-600 mb-1.5">Role</label>
+                  <select
+                    value={editForm.role}
+                    onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                    className="w-full px-4 py-3 bg-white border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium text-neutral-900"
+                  >
                     {roleOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Status</label>
-                  <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none">
+                  <label className="block text-xs font-medium text-neutral-600 mb-1.5">Status</label>
+                  <select
+                    value={editForm.status}
+                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                    className="w-full px-4 py-3 bg-white border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium text-neutral-900"
+                  >
                     {validStatuses.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
               </div>
+
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Company</label>
-                <input type="text" value={editForm.company} onChange={(e) => setEditForm({ ...editForm, company: e.target.value })} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none" />
+                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Company <span className="font-normal text-neutral-500">(Optional)</span></label>
+                <input
+                  type="text"
+                  value={editForm.company}
+                  onChange={(e) => setEditForm({ ...editForm, company: e.target.value })}
+                  className="w-full px-4 py-3 bg-white border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium text-neutral-900"
+                />
               </div>
+
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">User Type</label>
+                <label className="block text-xs font-medium text-neutral-600 mb-1.5">User Type</label>
                 <select
                   value={editForm.userTypeId}
                   onChange={(e) => setEditForm({ ...editForm, userTypeId: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none"
+                  className="w-full px-4 py-3 bg-white border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium text-neutral-900"
                 >
                   <option value="">Select User Type</option>
                   {userTypes.map(type => (
@@ -1052,9 +1074,21 @@ const UsersList = () => {
                 </select>
               </div>
             </div>
-            <div className="flex gap-4 mt-8">
-              <button onClick={() => setIsEditing(false)} className="flex-1 py-3 bg-gray-50 text-gray-600 rounded-xl font-bold hover:bg-gray-100 transition-all border border-gray-200">Cancel</button>
-              <button onClick={handleSaveEdit} disabled={loading} className="flex-1 py-3 bg-primary text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-md hover:shadow-lg active:scale-95">{loading ? 'Saving...' : 'Save Changes'}</button>
+
+            <div className="flex gap-4 pt-4">
+              <button
+                onClick={() => setIsEditing(false)}
+                className="flex-1 py-3 bg-neutral-100 text-neutral-700 rounded-lg font-semibold hover:bg-neutral-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={loading}
+                className="flex-1 py-3 bg-primary text-white rounded-lg font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-60"
+              >
+                {loading ? 'Saving...' : 'Save Changes'}
+              </button>
             </div>
           </div>
         </div>
