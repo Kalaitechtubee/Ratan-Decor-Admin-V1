@@ -126,8 +126,6 @@ const EnquiriesList = () => {
     setCurrentPage(page);
   }, [searchParams]);
 
-  const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
-
   const ROLES = ['Customer', 'Dealer', 'Architect', 'Admin', 'Manager', 'Sales', 'Support'];
   const SOURCES = ['Email', 'WhatsApp', 'Phone', 'VideoCall'];
   const STATUSES = ['New', 'InProgress', 'Confirmed', 'Delivered', 'Rejected'];
@@ -593,15 +591,6 @@ const EnquiriesList = () => {
 
             {/* Detailed Grid Filters */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              <select
-                value={filters.priority}
-                onChange={(e) => handleFilterChange('priority', e.target.value)}
-                className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary transition-all bg-white"
-              >
-                <option value="">All Priorities</option>
-                {PRIORITIES.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
-              </select>
-
               <select
                 value={filters.userType}
                 onChange={(e) => handleFilterChange('userType', e.target.value)}
