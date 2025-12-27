@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Download, Filter, Search, Eye, Edit, Calendar, X, RefreshCw, Package } from 'lucide-react';
+import { Download, Filter, Search, Eye, Edit, Calendar, X, RefreshCw, Package, Truck } from 'lucide-react';
 import Table from '../Common/Table';
 import StatusBadge from '../Common/StatusBadge';
 import Modal from '../Common/Modal';
@@ -15,7 +15,7 @@ const OrdersList = () => {
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [modalType, setModalType] = useState(null); // 'details' or 'edit'
-  const [showFilters, setShowFilters] = useState(true); // Show filters by default
+  const [showFilters, setShowFilters] = useState(false); // Hide filters by default
 
   // Initialize filters from URL params
   const [filters, setFilters] = useState({
@@ -43,6 +43,7 @@ const OrdersList = () => {
     total: 0,
     pending: 0,
     processing: 0,
+    shipped: 0,
     completed: 0,
     cancelled: 0,
   });
@@ -104,6 +105,7 @@ const OrdersList = () => {
         total: summary.totalOrders || 0,
         pending: statusBreakdown['Pending']?.count || 0,
         processing: statusBreakdown['Processing']?.count || 0,
+        shipped: statusBreakdown['Shipped']?.count || 0,
         completed: statusBreakdown['Completed']?.count || 0,
         cancelled: statusBreakdown['Cancelled']?.count || 0,
       });
@@ -320,7 +322,7 @@ const OrdersList = () => {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div
           className={`p-4 bg-white rounded-lg shadow-sm border-2 cursor-pointer transition-all hover:shadow-md ${filters.status === '' ? 'border-primary ring-2 ring-primary/20' : 'border-transparent'}`}
           onClick={() => setFilters({ ...filters, status: '', page: 1 })}
@@ -350,7 +352,7 @@ const OrdersList = () => {
           </div>
         </div>
         <div
-          className={`p-4 bg-white rounded-lg shadow-sm border-2 cursor-pointer transition-all hover:shadow-md ${filters.status === 'Processing' ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-transparent'}`}
+          className={`p-4 bg-white rounded-lg shadow-sm border-2 cursor-pointer transition-all hover:shadow-md ${filters.status === 'Processing' ? 'border-primary ring-2 ring-primary/20' : 'border-transparent'}`}
           onClick={() => setFilters({ ...filters, status: 'Processing', page: 1 })}
         >
           <div className="flex items-center gap-3">
@@ -360,6 +362,20 @@ const OrdersList = () => {
             <div>
               <p className="text-2xl font-bold text-blue-600">{stats.processing}</p>
               <p className="text-xs text-gray-500">Processing</p>
+            </div>
+          </div>
+        </div>
+        <div
+          className={`p-4 bg-white rounded-lg shadow-sm border-2 cursor-pointer transition-all hover:shadow-md ${filters.status === 'Shipped' ? 'border-purple-500 ring-2 ring-purple-500/20' : 'border-transparent'}`}
+          onClick={() => setFilters({ ...filters, status: 'Shipped', page: 1 })}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Truck className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-purple-600">{stats.shipped}</p>
+              <p className="text-xs text-gray-500">Shipped</p>
             </div>
           </div>
         </div>
@@ -543,9 +559,9 @@ const OrdersList = () => {
               <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
                 <span className="text-sm text-gray-500">Active filters:</span>
                 {filters.status && (
-                  <div className="flex items-center px-3 py-1 bg-yellow-50 rounded-full border border-yellow-200">
-                    <span className="text-yellow-700 text-xs font-medium">Status: {filters.status}</span>
-                    <button onClick={() => setFilters({ ...filters, status: '', page: 1 })} className="ml-2 text-yellow-400 hover:text-yellow-600">
+                  <div className={`flex items-center px-3 py-1 rounded-full border ${filters.status === 'Shipped' ? 'bg-purple-50 border-purple-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                    <span className={`${filters.status === 'Shipped' ? 'text-purple-700' : 'text-yellow-700'} text-xs font-medium`}>Status: {filters.status}</span>
+                    <button onClick={() => setFilters({ ...filters, status: '', page: 1 })} className={`${filters.status === 'Shipped' ? 'text-purple-400 hover:text-purple-600' : 'text-yellow-400 hover:text-yellow-600'} ml-2`}>
                       <X size={12} />
                     </button>
                   </div>

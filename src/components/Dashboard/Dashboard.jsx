@@ -1,69 +1,175 @@
-import React from 'react';
-import { Users, MessageSquare, ShoppingCart, IndianRupee, TrendingUp, TrendingDown, ArrowUpRight, Activity } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { getAllUsers, getAllEnquiries, getUserTypes, getProducts } from '../../services/Api';
+import adminOrderApi from '../Orders/adminOrderApi';
+import appointmentApi from '../VideoCallAppointmentsList/appointmentApi';
+import { Users, MessageSquare, ShoppingCart, TrendingUp, TrendingDown, Activity, Video, Briefcase, UserCheck, Layers, Package, BarChart3 } from 'lucide-react';
 
-// Mock data for dashboard stats
-const mockDashboardStats = {
-  totalUsers: 1250,
-  userGrowth: 12.5,
-  newEnquiries: 48,
-  enquiryGrowth: 8.3,
-  pendingOrders: 32,
-  orderGrowth: -5.2,
-  monthlyRevenue: 1250000,
-  revenueGrowth: 15.8
-};
+const Dashboard = () => {
+  const [stats, setStats] = useState({
+    totalCustomers: 0,
+    newEnquiries: 0,
+    totalOrders: 0,
+    pendingOrders: 0,
+    videoCallAppointments: 0,
+    architectsCount: 0,
+    dealersCount: 0,
+    customersCount: 0,
+    businessTypesCount: 0,
+    productsCount: 0,
+    userGrowth: 0,
+    enquiryGrowth: 0,
+    orderGrowth: 0,
+    revenueGrowth: 0,
+    monthlyRevenue: 0
+  });
+  const [loading, setLoading] = useState(true);
 
-// Mock data for chart
-const mockChartData = [
-  { name: 'Jan', value: 120000 },
-  { name: 'Feb', value: 150000 },
-  { name: 'Mar', value: 180000 },
-  { name: 'Apr', value: 220000 },
-  { name: 'May', value: 270000 },
-  { name: 'Jun', value: 250000 }
-];
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      try {
+        setLoading(true);
 
-function Dashboard() {
-  const stats = mockDashboardStats;
-  const chartData = mockChartData;
+        // Parallel data fetching
+        const [usersRes, enquiriesRes, ordersRes, appointmentsRes, userTypesRes, productsRes] = await Promise.all([
+          getAllUsers({ includeStaff: 'true', limit: 1 }),
+          getAllEnquiries({ limit: 1 }),
+          adminOrderApi.getOrders({ limit: 1 }),
+          appointmentApi.getAllAppointments({ limit: 1 }),
+          getUserTypes(),
+          getProducts({ limit: 1 })
+        ]);
+
+        // Calculate stats
+        const totalUsers = usersRes.pagination?.totalItems || 0;
+        const totalEnquiries = enquiriesRes.pagination?.totalItems || enquiriesRes.pagination?.total || 0;
+        const videoCallAppointments = appointmentsRes.pagination?.totalItems || 0;
+
+        // Extract role counts from usersRes.summary.roleBreakdown
+        const roleBreakdown = usersRes.summary?.roleBreakdown || {};
+        const architectsCount = roleBreakdown['Architect'] || 0;
+        const dealersCount = roleBreakdown['Dealer'] || 0;
+        const customersCount = roleBreakdown['customer'] || 0;
+
+        // Use orderSummary for filtered counts
+        const totalOrdersCount = ordersRes.orderSummary?.totalOrders || ordersRes.pagination?.total || 0;
+        const pendingOrders = ordersRes.orderSummary?.statusBreakdown?.['Pending']?.count || 0;
+        const businessTypesCount = userTypesRes.userTypes?.length || 0;
+        const productsCount = productsRes.pagination?.total || 0;
+
+        setStats({
+          totalCustomers: totalUsers,
+          newEnquiries: totalEnquiries,
+          totalOrders: totalOrdersCount,
+          pendingOrders,
+          videoCallAppointments,
+          architectsCount,
+          dealersCount,
+          customersCount,
+          businessTypesCount,
+          productsCount,
+          userGrowth: 0, // Placeholder
+          enquiryGrowth: 0, // Placeholder
+          orderGrowth: 0, // Placeholder
+          revenueGrowth: 0,
+          monthlyRevenue: 0
+        });
+
+      } catch (error) {
+        console.error("Error fetching dashboard stats:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardStats();
+  }, []);
 
   // StatCard component
-  function StatCard({ title, value, growth, icon, color, gradient }) {
+  function StatCard({ title, value, icon, color, gradient, size = "normal" }) {
+    const isLarge = size === "large";
+
     return (
-      <div className="group relative p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden">
-        {/* Gradient background on hover */}
-        <div className={`absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-300 ${gradient}`}></div>
-        
-        <div className="relative flex justify-between items-start">
+      <div className={`group relative p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden`}>
+        {/* Subtle background glow on hover */}
+        <div className={`absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-0 group-hover:opacity-10 transition-opacity duration-500 ${gradient} blur-2xl`}></div>
+
+        <div className="relative flex justify-between items-center">
           <div className="flex-1">
-            <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-            <p className="text-3xl font-bold text-gray-900 mb-3">{value}</p>
-            <div className="flex items-center">
-              {growth >= 0 ? (
-                <div className="flex items-center px-2 py-1 rounded-full bg-emerald-50">
-                  <TrendingUp size={14} className="text-emerald-600" />
-                  <span className="ml-1 text-sm font-semibold text-emerald-600">
-                    {Math.abs(growth)}%
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center px-2 py-1 rounded-full bg-red-50">
-                  <TrendingDown size={14} className="text-red-600" />
-                  <span className="ml-1 text-sm font-semibold text-red-600">
-                    {Math.abs(growth)}%
-                  </span>
-                </div>
-              )}
-              <span className="ml-2 text-xs text-gray-400">vs last month</span>
-            </div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{title}</p>
+            <p className={`${isLarge ? 'text-4xl' : 'text-3xl'} font-extrabold text-gray-900 mb-0 transition-all duration-300 group-hover:translate-x-1`}>
+              {value}
+            </p>
           </div>
-          <div className={`flex items-center justify-center w-14 h-14 rounded-xl ${color} group-hover:scale-110 transition-transform duration-300`}>
-            {icon}
+          <div className={`flex items-center justify-center ${isLarge ? 'w-16 h-16' : 'w-14 h-14'} rounded-2xl ${color} shadow-inner group-hover:scale-110 group-hover:rotate-3 transition-all duration-500`}>
+            {React.cloneElement(icon, { size: isLarge ? 28 : 24 })}
           </div>
         </div>
+
+        {/* Bottom decorative bar */}
+        <div className={`absolute bottom-0 left-0 h-1 w-0 group-hover:w-full transition-all duration-500 ${gradient}`}></div>
       </div>
     );
   }
+
+  const UserDistributionCard = ({ stats }) => {
+    const total = stats.architectsCount + stats.dealersCount + stats.customersCount;
+    const getWidth = (count) => total > 0 ? (count / total) * 100 : 0;
+    const getPercent = (count) => total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+
+    const items = [
+      { label: 'Architects', count: stats.architectsCount, icon: <Briefcase size={18} />, color: 'bg-indigo-500', iconColor: 'text-indigo-500' },
+      { label: 'Dealers', count: stats.dealersCount, icon: <UserCheck size={18} />, color: 'bg-purple-500', iconColor: 'text-purple-500' },
+      { label: 'Customers', count: stats.customersCount, icon: <Users size={18} />, color: 'bg-teal-500', iconColor: 'text-teal-500' },
+    ];
+
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 h-full">
+        <div className="flex items-center gap-4 mb-8">
+          <div className="p-3 bg-indigo-50 rounded-xl">
+            <BarChart3 className="text-indigo-600" size={24} />
+          </div>
+          <h2 className="text-xl font-bold text-gray-800">User Distribution</h2>
+        </div>
+
+        <div className="space-y-8">
+          {items.map((item, idx) => (
+            <div key={idx} className="space-y-3">
+              <div className="flex justify-between items-center text-sm">
+                <div className={`flex items-center gap-2 font-semibold ${item.iconColor}`}>
+                  {item.icon}
+                  <span>{item.label}</span>
+                </div>
+                <div className="font-bold text-gray-900">
+                  {item.count.toLocaleString()} <span className="text-gray-400 font-medium ml-1">({getPercent(item.count)}%)</span>
+                </div>
+              </div>
+              <div className="h-2 w-full bg-gray-50 rounded-full overflow-hidden">
+                <div
+                  className={`h-full ${item.color} rounded-full transition-all duration-1000 ease-out`}
+                  style={{ width: `${getWidth(item.count)}%` }}
+                ></div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-12 pt-6 border-t border-gray-50 flex justify-between items-center text-lg font-bold">
+          <span className="text-gray-500">Total Users</span>
+          <span className="text-2xl text-gray-900">{total.toLocaleString()}</span>
+        </div>
+      </div>
+    );
+  };
+
+  const SectionHeader = ({ title, subtitle }) => (
+    <div className="mb-6">
+      <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+        <div className="w-1 h-6 bg-[#ff4747] rounded-full"></div>
+        {title}
+      </h2>
+      {subtitle && <p className="text-sm text-gray-500 mt-1 ml-3">{subtitle}</p>}
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
@@ -78,172 +184,93 @@ function Dashboard() {
               </h1>
               <p className="text-gray-500 mt-2 text-lg">Monitor your business performance in real-time</p>
             </div>
-            <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm">
-              <Activity size={16} className="text-[#ff4747]" />
-              <span className="text-sm text-gray-600">
-                Last updated: {new Date().toLocaleTimeString()}
-              </span>
-            </div>
           </div>
         </div>
 
-        {/* Stats Grid with stagger animation */}
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Total Users"
-            value={stats.totalUsers.toLocaleString()}
-            growth={stats.userGrowth}
-            icon={<Users size={24} className="text-blue-600" />}
-            color="bg-blue-50"
-            gradient="bg-gradient-to-br from-blue-400 to-blue-600"
+        {/* Key Business Metrics */}
+        <section>
+          <SectionHeader
+            title="Business Performance"
+            subtitle="Core operational metrics and customer growth"
           />
-          <StatCard
-            title="New Enquiries"
-            value={stats.newEnquiries.toString()}
-            growth={stats.enquiryGrowth}
-            icon={<MessageSquare size={24} className="text-emerald-600" />}
-            color="bg-emerald-50"
-            gradient="bg-gradient-to-br from-emerald-400 to-emerald-600"
-          />
-          <StatCard
-            title="Pending Orders"
-            value={stats.pendingOrders.toString()}
-            growth={stats.orderGrowth}
-            icon={<ShoppingCart size={24} className="text-amber-600" />}
-            color="bg-amber-50"
-            gradient="bg-gradient-to-br from-amber-400 to-amber-600"
-          />
-          <StatCard
-            title="Monthly Revenue"
-            value={`₹${(stats.monthlyRevenue / 100000).toFixed(1)}L`}
-            growth={stats.revenueGrowth}
-            icon={<IndianRupee size={24} className="text-[#ff4747]" />}
-            color="bg-red-50"
-            gradient="bg-gradient-to-br from-[#ff4747] to-[#ff6b6b]"
-          />
-        </div>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              title="Total Customers"
+              value={stats.totalCustomers.toLocaleString()}
+              size="large"
+              icon={<Users className="text-blue-600" />}
+              color="bg-blue-50"
+              gradient="bg-gradient-to-br from-blue-400 to-blue-600"
+            />
+            <StatCard
+              title="Total Orders"
+              value={stats.totalOrders.toString()}
+              size="large"
+              icon={<ShoppingCart className="text-amber-600" />}
+              color="bg-amber-50"
+              gradient="bg-gradient-to-br from-amber-400 to-amber-600"
+            />
+            <StatCard
+              title="Pending Orders"
+              value={stats.pendingOrders.toString()}
+              icon={<Activity className="text-rose-600" />}
+              color="bg-rose-50"
+              gradient="bg-gradient-to-br from-rose-400 to-rose-600"
+            />
+            <StatCard
+              title="New Enquiries"
+              value={stats.newEnquiries.toString()}
+              icon={<MessageSquare className="text-emerald-600" />}
+              color="bg-emerald-50"
+              gradient="bg-gradient-to-br from-emerald-400 to-emerald-600"
+            />
+          </div>
+        </section>
 
-        {/* Charts and Tables */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* Revenue Chart */}
-          <div className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-shadow duration-300">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">Revenue Trend</h3>
-                <p className="text-sm text-gray-500 mt-1">Monthly performance overview</p>
-              </div>
-              <select className="px-4 py-2 text-sm rounded-lg border border-gray-200 focus:ring-2 focus:ring-[#ff4747] focus:border-[#ff4747] outline-none bg-white hover:border-[#ff4747] transition-colors">
-                <option>Last 6 months</option>
-                <option>Last 12 months</option>
-              </select>
-            </div>
-            <div className="flex items-end justify-between space-x-3 h-64 px-2">
-              {chartData.map((item, index) => {
-                const maxValue = Math.max(...chartData.map(d => d.value));
-                const heightPercent = (item.value / maxValue) * 100;
-                return (
-                  <div key={index} className="group flex flex-col flex-1 items-center">
-                    <div className="relative w-full">
-                      <div
-                        className="w-full rounded-t-lg transition-all duration-500 ease-out bg-gradient-to-t from-[#ff4747] to-[#ff6b6b] hover:from-[#ff6b6b] hover:to-[#ff4747] cursor-pointer"
-                        style={{ 
-                          height: `${(heightPercent / 100) * 200}px`,
-                          animation: `slideUp 0.6s ease-out ${index * 0.1}s both`
-                        }}
-                      />
-                      <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                        ₹{(item.value / 1000).toFixed(0)}k
-                      </div>
-                    </div>
-                    <span className="mt-3 text-xs font-medium text-gray-600">{item.name}</span>
-                  </div>
-                );
-              })}
-            </div>
+        {/* Mid Section: User Distribution & Insights */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* User Distribution - List style as per requested Image */}
+          <div className="lg:col-span-2">
+            <UserDistributionCard stats={stats} />
           </div>
 
-          {/* Recent Activity */}
-          <div className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-shadow duration-300">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">Recent Activity</h3>
-                <p className="text-sm text-gray-500 mt-1">Latest updates and actions</p>
+          {/* Operational Metrics & Insights */}
+          <section className="space-y-8">
+            <section>
+              <SectionHeader
+                title="System Insights"
+                subtitle="Service status overview"
+              />
+              <div className="space-y-6">
+                <StatCard
+                  title="Video Appointments"
+                  value={stats.videoCallAppointments.toString()}
+                  icon={<Video className="text-purple-600" />}
+                  color="bg-purple-50"
+                  gradient="bg-gradient-to-br from-purple-400 to-purple-600"
+                />
               </div>
-              <button className="text-sm text-[#ff4747] hover:text-[#ff6b6b] font-medium flex items-center gap-1 transition-colors">
-                View all
-                <ArrowUpRight size={14} />
-              </button>
-            </div>
-            <div className="space-y-4">
-              {[
-                { type: 'order', message: 'New order received from John Smith', time: '2 minutes ago', color: 'bg-emerald-400' },
-                { type: 'enquiry', message: 'New enquiry about office furniture', time: '15 minutes ago', color: 'bg-blue-400' },
-                { type: 'user', message: 'New architect registration pending approval', time: '1 hour ago', color: 'bg-amber-400' },
-                { type: 'payment', message: 'Payment received for order #ORD-2024-001', time: '2 hours ago', color: 'bg-purple-400' }
-              ].map((activity, index) => (
-                <div key={index} className="group flex items-start space-x-4 p-3 rounded-xl hover:bg-gray-50 transition-colors duration-200 cursor-pointer">
-                  <div className={`w-2 h-2 rounded-full mt-2 ${activity.color} group-hover:scale-125 transition-transform`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 group-hover:text-[#ff4747] transition-colors">{activity.message}</p>
-                    <p className="text-xs text-gray-400 mt-1">{activity.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+            </section>
 
-        {/* Quick Actions */}
-        <div className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm">
-          <div className="mb-6">
-            <h3 className="text-xl font-bold text-gray-900">Quick Actions</h3>
-            <p className="text-sm text-gray-500 mt-1">Common tasks and shortcuts</p>
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <button className="group relative p-6 rounded-xl border-2 border-dashed border-gray-200 transition-all duration-300 hover:border-[#ff4747] hover:bg-gradient-to-br hover:from-red-50 hover:to-transparent overflow-hidden">
+            {/* Quick Summary Card */}
+            <div className="p-6 bg-gradient-to-br from-[#ff4747] to-[#ff6b6b] rounded-2xl shadow-lg text-white relative overflow-hidden group">
               <div className="relative z-10">
-                <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center mb-3 group-hover:bg-[#ff4747] transition-colors">
-                  <MessageSquare className="text-[#ff4747] group-hover:text-white transition-colors" size={24} />
+                <h3 className="text-lg font-bold mb-2">Workspace Activity</h3>
+                <p className="text-white/80 text-sm leading-relaxed mb-4">
+                  You have {stats.pendingOrders} pending orders that require immediate attention.
+                </p>
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider bg-white/20 w-fit px-3 py-1 rounded-full">
+                  <Activity size={12} />
+                  System Active
                 </div>
-                <p className="text-base font-semibold text-gray-900 group-hover:text-[#ff4747] transition-colors">Create New Enquiry</p>
-                <p className="text-sm text-gray-500 mt-1">Start a new customer enquiry</p>
               </div>
-            </button>
-            <button className="group relative p-6 rounded-xl border-2 border-dashed border-gray-200 transition-all duration-300 hover:border-[#ff4747] hover:bg-gradient-to-br hover:from-red-50 hover:to-transparent overflow-hidden">
-              <div className="relative z-10">
-                <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center mb-3 group-hover:bg-[#ff4747] transition-colors">
-                  <Users className="text-[#ff4747] group-hover:text-white transition-colors" size={24} />
-                </div>
-                <p className="text-base font-semibold text-gray-900 group-hover:text-[#ff4747] transition-colors">Add New User</p>
-                <p className="text-sm text-gray-500 mt-1">Register a new user account</p>
-              </div>
-            </button>
-            <button className="group relative p-6 rounded-xl border-2 border-dashed border-gray-200 transition-all duration-300 hover:border-[#ff4747] hover:bg-gradient-to-br hover:from-red-50 hover:to-transparent overflow-hidden">
-              <div className="relative z-10">
-                <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center mb-3 group-hover:bg-[#ff4747] transition-colors">
-                  <ShoppingCart className="text-[#ff4747] group-hover:text-white transition-colors" size={24} />
-                </div>
-                <p className="text-base font-semibold text-gray-900 group-hover:text-[#ff4747] transition-colors">Create Manual Order</p>
-                <p className="text-sm text-gray-500 mt-1">Process a new order manually</p>
-              </div>
-            </button>
-          </div>
+              <Activity className="absolute -right-8 -bottom-8 w-40 h-40 opacity-10 group-hover:scale-110 transition-transform duration-700" />
+            </div>
+          </section>
         </div>
       </div>
-
-      <style>{`
-        @keyframes slideUp {
-          from {
-            height: 0;
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-      `}</style>
     </div>
   );
-}
+};
 
 export default Dashboard;

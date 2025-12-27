@@ -19,6 +19,7 @@ const ENQUIRIES_ENDPOINT = `${API_BASE_URL}/enquiries`;
 const SEO_ENDPOINT = `${API_BASE_URL}/seo`;
 const CONTACTS_ENDPOINT = `${API_BASE_URL}/contact`;
 const ORDERS_ENDPOINT = `${API_BASE_URL}/orders`;
+const CATALOG_ENDPOINT = `${API_BASE_URL}/catalog`;
 
 // Utility Functions
 const handleResponse = async (response) => {
@@ -2277,4 +2278,58 @@ export const setAuthData = (user) => {
 
 export const clearAuth = () => {
   clearAuthData();
+};
+
+// Catalog API Functions
+
+export const getCatalog = async () => {
+  try {
+    const data = await apiFetch(CATALOG_ENDPOINT, {
+      method: 'GET',
+    });
+    return {
+      success: true,
+      catalog: data.catalog
+    };
+  } catch (error) {
+    // If 404, it just means no catalog exists yet, which is fine for UI
+    if (error.message && error.message.includes('404')) {
+      return { success: true, catalog: null };
+    }
+    throw error;
+  }
+};
+
+export const uploadCatalog = async (formData) => {
+  // FormData handles Content-Type
+  const response = await fetch(CATALOG_ENDPOINT, {
+    method: 'POST',
+    headers: getAuthHeaders(true),
+    credentials: 'include',
+    body: formData,
+  });
+
+  // Check for 401
+  if (response.status === 401) {
+    clearAuthData();
+    redirectToLogin();
+    throw new Error('Authentication failed. Please log in again.');
+  }
+
+  const data = await handleResponse(response);
+  return {
+    success: true,
+    catalog: data.catalog,
+    message: data.message
+  };
+};
+
+export const deleteCatalog = async () => {
+  const data = await apiFetch(CATALOG_ENDPOINT, {
+    method: 'DELETE',
+  });
+  return {
+    success: true,
+    message: data.message
+  };
 };

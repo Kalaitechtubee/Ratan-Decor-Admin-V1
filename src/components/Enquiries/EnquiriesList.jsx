@@ -126,7 +126,15 @@ const EnquiriesList = () => {
     setCurrentPage(page);
   }, [searchParams]);
 
-  const ROLES = ['Customer', 'Dealer', 'Architect', 'Admin', 'Manager', 'Sales', 'Support'];
+  const ROLES = [
+    { label: 'Customer', value: 'customer' },
+    { label: 'Architect', value: 'Architect' },
+    { label: 'Dealer', value: 'Dealer' },
+    { label: 'Admin', value: 'Admin' },
+    // { label: 'Manager', value: 'Manager' },
+    { label: 'Sales', value: 'Sales' },
+    { label: 'Support', value: 'Support' }
+  ];
   const SOURCES = ['Email', 'WhatsApp', 'Phone', 'VideoCall'];
   const STATUSES = ['New', 'InProgress', 'Confirmed', 'Delivered', 'Rejected'];
 
@@ -344,7 +352,7 @@ const EnquiriesList = () => {
         sortable: true,
         render: (value, item) => (
           <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 font-roboto">
-            {value}
+            {value === 'customer' ? 'Customer' : value}
           </span>
         ),
       },
@@ -606,7 +614,7 @@ const EnquiriesList = () => {
                 className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary transition-all bg-white"
               >
                 <option value="">All Roles</option>
-                {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
 
 
@@ -646,6 +654,9 @@ const EnquiriesList = () => {
               if (key === 'userType') {
                 const type = userTypes.find(t => t.id.toString() === value.toString());
                 displayValue = type ? type.name : value;
+              } else if (key === 'role') {
+                const roleObj = ROLES.find(r => r.value === value);
+                displayValue = roleObj ? roleObj.label : value;
               }
 
               const chipStyles = {

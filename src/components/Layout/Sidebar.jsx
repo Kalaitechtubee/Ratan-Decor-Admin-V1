@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Briefcase,
   Mail,
+  FileText,
 } from 'lucide-react';
 import { navigationItems, protectedRoutes } from '../../routes';
 import { canAccessRoute } from '../../utils/roleAccess';
@@ -149,8 +150,8 @@ const Sidebar = ({ currentPage, userRole, isCollapsed, onToggleCollapse, onLogou
                   <button
                     onClick={() => toggleDropdown(item.id)}
                     className={`w-full flex items-center px-3 py-2 rounded-lg transition-all duration-200 ${isSubItemActive(item.subItems)
-                        ? 'bg-red-50 text-primary border-r-2 border-primary'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-primary'
+                      ? 'bg-red-50 text-primary border-r-2 border-primary'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-primary'
                       }`}
                     title={isCollapsed ? item.label : undefined}
                     aria-label={`Toggle ${item.label} dropdown`}
@@ -172,8 +173,8 @@ const Sidebar = ({ currentPage, userRole, isCollapsed, onToggleCollapse, onLogou
                           <button
                             onClick={() => handleNavigation(subItem.path)}
                             className={`w-full flex items-center px-3 py-1 rounded-lg transition-all duration-200 ${isActivePage(subItem.path)
-                                ? 'bg-red-50 text-primary'
-                                : 'text-gray-600 hover:bg-gray-50 hover:text-primary'
+                              ? 'bg-red-50 text-primary'
+                              : 'text-gray-600 hover:bg-gray-50 hover:text-primary'
                               }`}
                             title={subItem.label}
                             aria-label={`Navigate to ${subItem.label}`}
@@ -192,8 +193,8 @@ const Sidebar = ({ currentPage, userRole, isCollapsed, onToggleCollapse, onLogou
                 <button
                   onClick={() => handleNavigation(item.path)}
                   className={`w-full flex items-center px-3 py-2 rounded-lg transition-all duration-200 ${isActivePage(item.path)
-                      ? 'bg-red-50 text-primary border-r-2 border-primary'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-primary'
+                    ? 'bg-red-50 text-primary border-r-2 border-primary'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-primary'
                     }`}
                   title={isCollapsed ? item.label : undefined}
                   aria-label={`Navigate to ${item.label}`}

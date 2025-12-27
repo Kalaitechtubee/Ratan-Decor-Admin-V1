@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom';
 import { debounce } from 'lodash';
 import { toast } from 'react-toastify';
+import Pagination from '../Common/Pagination';
 import {
   Users,
   Search,
@@ -154,8 +155,15 @@ const UsersList = () => {
     status: '',
     paymentStatus: '',
     page: 1,
+    page: 1,
     limit: 5
   });
+
+  const handleOrderPageChange = (newPage) => {
+    if (newPage > 0 && newPage <= orderHistory.pagination.totalPages) {
+      setOrderFilters(prev => ({ ...prev, page: newPage }));
+    }
+  };
 
   const [searchTerm, setSearchTerm] = useState('');
   const searchTimeoutRef = useRef(null);
@@ -299,7 +307,12 @@ const UsersList = () => {
       setOrderHistory({
         orders: response.orders || [],
         summary: response.orderSummary || null,
-        pagination: response.pagination || { currentPage: 1, totalPages: 1, totalItems: 0 },
+        pagination: {
+          currentPage: parseInt(response.pagination?.page || 1),
+          totalPages: parseInt(response.pagination?.totalPages || 1),
+          totalItems: parseInt(response.pagination?.total || 0),
+          limit: parseInt(response.pagination?.limit || 5)
+        },
         loading: false,
         error: null
       });
@@ -973,7 +986,7 @@ const UsersList = () => {
                       </div>
                       <div className="p-4 bg-green-50 rounded-lg border border-green-100">
                         <p className="text-xs text-green-600 uppercase font-bold mb-1">Delivered</p>
-                        <p className="text-2xl font-bold text-green-900">{orderHistory.summary.statusBreakdown?.delivered?.count || 0}</p>
+                        <p className="text-2xl font-bold text-green-900">{orderHistory.summary.statusBreakdown?.Completed?.count || 0}</p>
                       </div>
                       <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
                         <p className="text-xs text-purple-600 uppercase font-bold mb-1">Total Amount</p>
@@ -1000,6 +1013,21 @@ const UsersList = () => {
                       ))
                     )}
                   </div>
+
+                  {/* Order History Pagination */}
+                  {orderHistory.pagination && orderHistory.pagination.totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                      {/* Order History Pagination */}
+                      <div className="flex justify-end pt-4 border-t border-gray-100">
+                        <Pagination
+                          currentPage={orderHistory.pagination.currentPage}
+                          totalPages={orderHistory.pagination.totalPages}
+                          onPageChange={handleOrderPageChange}
+                          maxVisiblePages={3}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

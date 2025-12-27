@@ -112,8 +112,8 @@ const LocationSelector = ({
             onChange={handlePincodeChange}
             placeholder="Enter 6-digit pincode"
             className={`w-full px-3 py-2 pr-10 rounded-lg border transition-all ${errors.pincode
-                ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
-                : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
+              ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
+              : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
               }`}
             maxLength={6}
           />
@@ -164,8 +164,8 @@ const LocationSelector = ({
             value={state}
             onChange={(e) => onLocationChange({ state: e.target.value, city })}
             className={`w-full px-3 py-2 rounded-lg border transition-all ${errors.state
-                ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
-                : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
+              ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
+              : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
               } ${!manualOverride && pincode.length === 6 ? 'bg-blue-50' : ''}`}
             placeholder="Enter state"
             readOnly={!manualOverride && suggestions.length > 0}
@@ -181,8 +181,8 @@ const LocationSelector = ({
             value={city}
             onChange={(e) => onLocationChange({ state, city: e.target.value })}
             className={`w-full px-3 py-2 rounded-lg border transition-all ${errors.city
-                ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
-                : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
+              ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
+              : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
               } ${!manualOverride && pincode.length === 6 ? 'bg-blue-50' : ''}`}
             placeholder="Enter city or district"
             readOnly={!manualOverride && suggestions.length > 0}
@@ -307,8 +307,8 @@ const EditEnquiryModal = ({
             if (hasError) setValidationErrors((prev) => ({ ...prev, [name]: undefined }));
           }}
           className={`w-full px-3 py-2 rounded-lg border transition-shadow ${hasError
-              ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
-              : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
+            ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
+            : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
             }`}
           {...props}
         />
@@ -332,8 +332,8 @@ const EditEnquiryModal = ({
             if (hasError) setValidationErrors((prev) => ({ ...prev, [name]: undefined }));
           }}
           className={`w-full px-3 py-2 rounded-lg border transition-shadow ${hasError
-              ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
-              : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
+            ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent'
+            : 'border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent'
             }`}
           {...props}
         >
@@ -463,7 +463,7 @@ const EditEnquiryModal = ({
             <FormSelect
               label="Role"
               name="role"
-              options={roles.map((role) => ({ value: role, label: role }))}
+              options={roles}
             />
           </div>
         </div>
