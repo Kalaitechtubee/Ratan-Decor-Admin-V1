@@ -14,6 +14,7 @@ import ContactsList from '../components/Contact/ContactsList';
 
 import Sliders from '../components/Sliders/Sliders';
 import Profile from '../components/Profile/Profile';
+import CatalogSettings from '../components/Catalog/CatalogSettings';
 
 // Public routes
 export const publicRoutes = [
@@ -148,6 +149,14 @@ export const protectedRoutes = [
     requiredAccess: 'requireSlidersAccess',
   },
   {
+    path: '/catalog-settings',
+    element: CatalogSettings,
+    title: 'Catalog Settings',
+    icon: 'catalog-settings',
+    isPublic: false,
+    requiredAccess: 'requireSlidersAccess', // Using sliders access as it's content management
+  },
+  {
     path: '/profile',
     element: Profile,
     title: 'My Profile',
@@ -183,6 +192,7 @@ export const navigationItems = [
   },
   { id: 'business-types', label: 'Business Types', path: '/manage-business-types', icon: 'business-types' }, // ✅ standalone
   { id: 'category', label: 'Categories', path: '/categories', icon: 'category' },
+  { id: 'catalog-settings', label: 'Catalog Settings', path: '/catalog-settings', icon: 'catalog-settings' },
   { id: 'sliders', label: 'Sliders', path: '/sliders', icon: 'sliders' },
   { id: 'seo', label: 'SEO Management', path: '/seo', icon: 'seo' },
   { id: 'contacts', label: 'Contacts', path: '/contacts', icon: 'contacts' },
@@ -227,4 +237,5 @@ export const sidebarIconMap = {
   'staff-management': 'Users',
   contacts: 'Mail',
   sliders: 'Image',
+  'catalog-settings': 'FileText',
 };

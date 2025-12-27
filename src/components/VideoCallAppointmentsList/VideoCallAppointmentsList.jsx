@@ -157,6 +157,15 @@ const VideoCallAppointmentsList = ({ currentUser }) => {
   const SOURCES = ['VideoCall', 'Website', 'Phone', 'Email'];
   const STATUSES = ['New', 'Scheduled', 'Completed', 'Cancelled'];
   const STAFF_ROLES = ['SuperAdmin', 'Admin', 'Manager', 'Sales', 'Support'];
+  const ROLES = [
+    { label: 'Customer', value: 'customer' },
+    { label: 'Architect', value: 'Architect' },
+    { label: 'Dealer', value: 'Dealer' },
+    { label: 'Admin', value: 'Admin' },
+    // { label: 'Manager', value: 'Manager' },
+    { label: 'Sales', value: 'Sales' },
+    { label: 'Support', value: 'Support' }
+  ];
 
   const showToast = React.useCallback((message, type = 'success') => setToast({ message, type }), []);
   const closeToast = React.useCallback(() => setToast(null), []);
@@ -676,7 +685,7 @@ const VideoCallAppointmentsList = ({ currentUser }) => {
                   className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary transition-all bg-white"
                 >
                   <option value="">All Roles</option>
-                  {['Customer', 'Dealer', 'Architect', 'Admin'].map(r => <option key={r} value={r}>{r}</option>)}
+                  {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
 
 
@@ -717,6 +726,9 @@ const VideoCallAppointmentsList = ({ currentUser }) => {
                 if (key === 'userType') {
                   const type = userTypes.find(t => t.id.toString() === value.toString());
                   displayValue = type ? type.name : value;
+                } else if (key === 'role') {
+                  const roleObj = ROLES.find(r => r.value === value);
+                  displayValue = roleObj ? roleObj.label : value;
                 }
 
                 const chipStyles = {
