@@ -901,81 +901,67 @@ const UsersList = () => {
               </div>
 
               {!showOrderHistory ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                  <div className="space-y-8">
-                    <div>
-                      <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4">Contact Information</h4>
-                      <div className="space-y-4">
-                        <div className="flex flex-col">
-                          <span className="text-xs text-gray-400 mb-1">Phone</span>
-                          <span className="text-sm font-bold text-gray-900">{selectedUser.mobile || '-'}</span>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-xs text-gray-400 mb-1">Company</span>
-                          <span className="text-sm font-bold text-gray-900">{selectedUser.company || '-'}</span>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-xs text-gray-400 mb-1">Role</span>
-                          <span className="text-sm font-bold text-gray-900">{selectedUser.role}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4">Account Status</h4>
-                      <div className="space-y-4">
-                        <div className="flex flex-col">
-                          <span className="text-xs text-gray-400 mb-1">Status</span>
-                          <div>
-                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${getStatusColor(selectedUser.status)}`}>
-                              {selectedUser.status}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-xs text-gray-400 mb-1">Registered</span>
-                          <span className="text-sm font-bold text-gray-900">{formatDate(selectedUser.createdAt)}</span>
-                        </div>
-                        {selectedUser.rejectionReason && (
-                          <div className="flex flex-col">
-                            <span className="text-xs text-gray-400 mb-1">Reason</span>
-                            <span className="text-sm font-medium text-red-600">{selectedUser.rejectionReason}</span>
-                          </div>
-                        )}
-                      </div>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <h3 className="mb-3 text-lg font-medium text-gray-900">Contact Information</h3>
+                    <div className="space-y-2 text-sm">
+                      <p>
+                        <span className="font-medium">Phone:</span> {selectedUser.mobile || '-'}
+                      </p>
+                      <p>
+                        <span className="font-medium">Company:</span> {selectedUser.company || '-'}
+                      </p>
+                      <p>
+                        <span className="font-medium">Role:</span> {selectedUser.role}
+                      </p>
                     </div>
                   </div>
-                  <div className="space-y-8">
-                    <div>
-                      <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4">Location Details</h4>
-                      <div className="grid grid-cols-2 gap-6">
-                        <div className="flex flex-col">
-                          <span className="text-xs text-gray-400 mb-1">City</span>
-                          <span className="text-sm font-bold text-gray-900">{selectedUser.city || '-'}</span>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-xs text-gray-400 mb-1">State</span>
-                          <span className="text-sm font-bold text-gray-900">{selectedUser.state || '-'}</span>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-xs text-gray-400 mb-1">Pincode</span>
-                          <span className="text-sm font-bold text-gray-900">{selectedUser.pincode || '-'}</span>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-xs text-gray-400 mb-1">Country</span>
-                          <span className="text-sm font-bold text-gray-900">{selectedUser.country || '-'}</span>
-                        </div>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <h3 className="mb-3 text-lg font-medium text-gray-900">Account Status</h3>
+                    <div className="space-y-2 text-sm">
+                      <p>
+                        <span className="font-medium">Status:</span>
+                        <span className={`ml-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${getStatusColor(selectedUser.status)}`}>
+                          {selectedUser.status}
+                        </span>
+                      </p>
+                      <p>
+                        <span className="font-medium">Registered:</span> {formatDate(selectedUser.createdAt)}
+                      </p>
+                      {selectedUser.rejectionReason && (
+                        <p>
+                          <span className="font-medium">Reason:</span> {selectedUser.rejectionReason}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <h3 className="mb-3 text-lg font-medium text-gray-900">Location Details</h3>
+                    <div className="space-y-2 text-sm">
+                      <p>
+                        <span className="font-medium">City:</span> {selectedUser.city || '-'}
+                      </p>
+                      <p>
+                        <span className="font-medium">State:</span> {selectedUser.state || '-'}
+                      </p>
+                      <p>
+                        <span className="font-medium">Pincode:</span> {selectedUser.pincode || '-'}
+                      </p>
+                      <p>
+                        <span className="font-medium">Country:</span> {selectedUser.country || '-'}
+                      </p>
+                    </div>
+                  </div>
+                  {selectedUser.status === 'Pending' && (
+                    <div className="p-4 bg-yellow-50 rounded-lg">
+                      <h3 className="mb-3 text-lg font-medium text-gray-900">Pending Review</h3>
+                      <p className="text-sm text-gray-700 mb-4">This account requires administrative review.</p>
+                      <div className="flex gap-3">
+                        <button onClick={() => handleApproveUser(selectedUser.id, 'Approved')} className="flex-1 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">Approve</button>
+                        <button onClick={() => handleRejectWithReason(selectedUser.id)} className="flex-1 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">Reject</button>
                       </div>
                     </div>
-                    {selectedUser.status === 'Pending' && (
-                      <div className="p-5 bg-yellow-50 rounded-xl border border-yellow-100 mt-4">
-                        <p className="text-sm text-yellow-800 font-medium mb-4">This account requires administrative review.</p>
-                        <div className="flex gap-3">
-                          <button onClick={() => handleApproveUser(selectedUser.id, 'Approved')} className="flex-1 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-shadow hover:shadow-lg">Approve</button>
-                          <button onClick={() => handleRejectWithReason(selectedUser.id)} className="flex-1 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition-shadow hover:shadow-lg">Reject</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-6">

@@ -128,8 +128,8 @@ const CategoryTable = ({
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center text-sm text-gray-600">
                       <Layers size={14} className="mr-1.5 text-gray-400" />
-                      <span className="font-medium">{item.subCategories?.length || 0}</span>
-                      <span className="ml-1 text-xs text-gray-400">Subcategories</span>
+                      <span className="font-bold text-gray-500">{item.subCategories?.length || 0}</span>
+                      <span className="ml-1 text-xs font-bold text-gray-500 uppercase tracking-wider">Subcategories</span>
                     </div>
                   </td>
                 )}
@@ -137,8 +137,8 @@ const CategoryTable = ({
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center text-sm text-gray-600">
                     <Package size={14} className="mr-1.5 text-gray-400" />
-                    <span className="font-medium text-green-600">{item.productCount || 0}</span>
-                    <span className="ml-1 text-xs text-gray-400">Products</span>
+                    <span className="font-bold text-gray-500">{item.productCount || 0}</span>
+                    <span className="ml-1 text-xs font-bold text-gray-500 uppercase tracking-wider">Products</span>
                   </div>
                 </td>
 
