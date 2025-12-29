@@ -4,6 +4,7 @@ import { debounce } from 'lodash';
 import { Plus, Search, Filter, Edit, Eye, Trash2, Package, Image, AlertCircle, Star, Tag, X } from 'lucide-react';
 import Table from '../Common/Table';
 import Modal from '../Common/Modal';
+import ExportButton from '../Common/ExportButton';
 import {
   getProducts,
   getCategories,
@@ -15,7 +16,9 @@ import {
 } from '../../services/Api';
 import ProductForm from './ProductForm';
 import ProductDetails from './ProductDetails';
+import DeleteConfirmationModal from '../Common/DeleteConfirmationModal';
 import { getUser, clearAuthData } from '../../utils/tokenHandler';
+
 import { normalizeImageUrl } from '../../utils/imageUtils';
 
 // Utility function to handle image URLs
@@ -82,6 +85,12 @@ const ProductsList = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
 
   // Initialize state from URL search params
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
@@ -427,13 +436,18 @@ const ProductsList = () => {
     setTimeout(() => setSuccess(null), 3000);
   };
 
-  const handleDeleteProduct = async (productId) => {
-    if (!window.confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
-      return;
-    }
+  const handleDeleteProduct = (productId) => {
+    const product = products.find(p => p.id === productId);
+    setProductToDelete(product);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteProduct = async () => {
+    if (!productToDelete) return;
 
     const previousProducts = [...products];
-    const deletedProduct = products.find(p => p.id === productId);
+    const productId = productToDelete.id;
+
 
     // Optimistic update
     setProducts(prev => prev.filter(product => product.id !== productId));
@@ -445,13 +459,14 @@ const ProductsList = () => {
     }));
 
     try {
-      setLoading(true);
+      setDeleting(true);
       const response = await deleteProduct(productId);
       if (!response.success) {
         throw new Error(response.message || 'Failed to delete product');
       }
       setSuccess('Product deleted successfully!');
       setSelectedProduct(null);
+      setShowDeleteModal(false);
       setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
       // Revert on failure
@@ -459,14 +474,16 @@ const ProductsList = () => {
       setCounts(prev => ({
         ...prev,
         totalCount: prev.totalCount + 1,
-        activeCount: deletedProduct?.isActive ? prev.activeCount + 1 : prev.activeCount,
-        inactiveCount: !deletedProduct?.isActive ? prev.inactiveCount + 1 : prev.inactiveCount,
+        activeCount: productToDelete?.isActive ? prev.activeCount + 1 : prev.activeCount,
+        inactiveCount: !productToDelete?.isActive ? prev.inactiveCount + 1 : prev.inactiveCount,
       }));
       handleApiError(error, 'Failed to delete product');
     } finally {
-      setLoading(false);
+      setDeleting(false);
+      setProductToDelete(null);
     }
   };
+
 
   const handleAddRating = async (productId) => {
     try {
@@ -768,6 +785,117 @@ const ProductsList = () => {
           <p className="text-gray-600">Manage your product catalog</p>
         </div>
         <div className="flex space-x-3">
+          <ExportButton
+            data={products.map(p => {
+              // Determine category and subcategory based on parent relationship
+              const isSubcategory = p.category?.parent;
+              const categoryName = isSubcategory ? p.category.parent.name : (p.category?.name || '-');
+              const subcategoryName = isSubcategory ? p.category.name : '-';
+
+              return {
+                name: p.name || '-',
+                description: p.description || '-',
+                brandName: p.brandName || '-',
+                designNumber: p.designNumber || '-',
+                category: categoryName,
+                subcategory: subcategoryName,
+                visibleTo: Array.isArray(p.visibleTo) ? p.visibleTo.join(', ') : (p.visibleTo || '-'),
+                size: p.size || '-',
+                thickness: p.thickness || '-',
+                gst: p.gst ? `${p.gst}%` : '-',
+                mrpPrice: p.mrpPrice ? `₹${Number(p.mrpPrice).toLocaleString('en-IN')}` : '-',
+                generalPrice: p.price ? `₹${Number(p.price).toLocaleString('en-IN')}` : '-',
+                architectPrice: p.architectPrice ? `₹${Number(p.architectPrice).toLocaleString('en-IN')}` : '-',
+                dealerPrice: p.dealerPrice ? `₹${Number(p.dealerPrice).toLocaleString('en-IN')}` : '-',
+                unitType: p.unitType || '-',
+                status: p.isActive ? 'Active' : 'Inactive',
+              };
+            })}
+            columns={[
+              { key: 'name', header: 'Product Name' },
+              { key: 'description', header: 'Description' },
+              { key: 'brandName', header: 'Brand Name' },
+              { key: 'designNumber', header: 'Design Number' },
+              { key: 'category', header: 'Category' },
+              { key: 'subcategory', header: 'Subcategory' },
+              { key: 'visibleTo', header: 'Visible To Business Types' },
+              { key: 'size', header: 'Size' },
+              { key: 'thickness', header: 'Thickness' },
+              { key: 'gst', header: 'GST (%)' },
+              { key: 'mrpPrice', header: 'MRP Price' },
+              { key: 'generalPrice', header: 'General Price' },
+              { key: 'architectPrice', header: 'Architect Price' },
+              { key: 'dealerPrice', header: 'Dealer Price' },
+              { key: 'unitType', header: 'Unit Type' },
+              { key: 'status', header: 'Status' },
+            ]}
+            filename="products"
+            loading={exporting}
+            hasFilters={hasActiveFilters}
+            onExport={async (format, exportType) => {
+              if (exportType === 'all') {
+                setExporting(true);
+                try {
+                  // Fetch all pages in batches (API limit might be 100)
+                  let allData = [];
+                  let page = 1;
+                  let hasMore = true;
+
+                  while (hasMore) {
+                    const response = await getProducts({
+                      page,
+                      limit: 100,
+                      search: searchTerm,
+                      ...filters,
+                    });
+                    const data = response.products || [];
+                    allData = [...allData, ...data];
+
+                    // Check if there are more pages
+                    const totalPages = response.pagination?.totalPages || 1;
+                    hasMore = page < totalPages;
+                    page++;
+                  }
+
+                  return allData.map(p => {
+                    // Determine category and subcategory based on parent relationship
+                    const isSubcategory = p.category?.parent;
+                    const categoryName = isSubcategory ? p.category.parent.name : (p.category?.name || '-');
+                    const subcategoryName = isSubcategory ? p.category.name : '-';
+
+                    return {
+                      name: p.name || '-',
+                      description: p.description || '-',
+                      brandName: p.brandName || '-',
+                      designNumber: p.designNumber || '-',
+                      category: categoryName,
+                      subcategory: subcategoryName,
+                      visibleTo: Array.isArray(p.visibleTo) ? p.visibleTo.join(', ') : (p.visibleTo || '-'),
+                      size: p.size || '-',
+                      thickness: p.thickness || '-',
+                      gst: p.gst ? `${p.gst}%` : '-',
+                      mrpPrice: p.mrpPrice ? `₹${Number(p.mrpPrice).toLocaleString('en-IN')}` : '-',
+                      generalPrice: p.price ? `₹${Number(p.price).toLocaleString('en-IN')}` : '-',
+                      architectPrice: p.architectPrice ? `₹${Number(p.architectPrice).toLocaleString('en-IN')}` : '-',
+                      dealerPrice: p.dealerPrice ? `₹${Number(p.dealerPrice).toLocaleString('en-IN')}` : '-',
+                      unitType: p.unitType || '-',
+                      status: p.isActive ? 'Active' : 'Inactive',
+                    };
+                  });
+                } catch (err) {
+                  console.error('Export failed:', err);
+                  setError('Export failed. Please try again.');
+                  return null;
+                } finally {
+                  setExporting(false);
+                }
+              }
+              return null;
+            }}
+            totalRecords={pagination.totalProducts}
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+          />
           <button
             onClick={() => setShowAddProduct(true)}
             className="flex items-center px-4 py-2 space-x-2 text-white rounded-lg bg-primary hover:bg-red-600"
@@ -1182,6 +1310,15 @@ const ProductsList = () => {
           </div>
         </div>
       </Modal>
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={confirmDeleteProduct}
+        title="Delete Product"
+        message={`Are you sure you want to delete ${productToDelete?.name}? This action cannot be undone.`}
+        loading={deleting}
+        itemDisplayName={productToDelete?.name}
+      />
     </div >
   );
 };

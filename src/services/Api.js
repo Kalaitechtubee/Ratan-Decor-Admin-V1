@@ -491,7 +491,8 @@ export const getAllUsers = async ({
   endDate,
   state,
   city,
-  pincode
+  pincode,
+  ...options
 }) => {
   const params = new URLSearchParams({
     page,
@@ -505,6 +506,8 @@ export const getAllUsers = async ({
     ...(state && { state }),
     ...(city && { city }),
     ...(pincode && { pincode }),
+    ...(options.includeOrderStats && { includeOrderStats: 'true' }),
+    ...(options.includeOrders && { includeOrders: 'true' })
   });
 
   const data = await apiFetch(`${USERS_ENDPOINT}?${params.toString()}`, {
@@ -1003,6 +1006,7 @@ export const getCategories = async (filters = {}) => {
       limit = 50,
       search = '',
       parentId = null,
+      type = '', // 'main' or 'sub'
       sortBy = 'name',
       sortOrder = 'ASC',
       includeSubcategories = false
@@ -1012,6 +1016,7 @@ export const getCategories = async (filters = {}) => {
     if (page) params.append('page', page.toString());
     if (limit) params.append('limit', limit.toString());
     if (search) params.append('search', search);
+    if (type) params.append('type', type);
     if (parentId !== null && parentId !== undefined) {
       params.append('parentId', parentId === null ? 'null' : parentId.toString());
     }
@@ -1754,13 +1759,15 @@ export const approveUser = async (userId, { status, reason }) => {
   };
 };
 
-export const getPendingUsers = async ({ page = 1, limit = 10, search }) => {
+export const getPendingUsers = async ({ page = 1, limit = 10, search, ...options }) => {
   validateInput({ page, limit }, ['page', 'limit']);
 
   const params = new URLSearchParams({
     page,
     limit,
     ...(search && { search }),
+    ...(options.includeOrderStats && { includeOrderStats: 'true' }),
+    ...(options.includeOrders && { includeOrders: 'true' })
   });
 
   const data = await apiFetch(`${ADMIN_ENDPOINT}/users/pending?${params.toString()}`, {
@@ -1996,8 +2003,11 @@ export const getEnquiryStats = async (period = '30') => {
 };
 
 // SEO API Functions
-export const getAllSeo = async () => {
-  const data = await apiFetch(SEO_ENDPOINT, {
+export const getAllSeo = async (params = {}) => {
+  const queryParams = new URLSearchParams();
+  if (params.search) queryParams.append('search', params.search);
+
+  const data = await apiFetch(`${SEO_ENDPOINT}?${queryParams.toString()}`, {
     method: 'GET',
   });
   return {

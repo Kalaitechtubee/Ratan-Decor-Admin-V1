@@ -4,7 +4,10 @@ import { Plus, Search, Filter, X, RefreshCw, Eye, Edit, Trash2, AlertCircle, Che
 import Table from '../Common/Table';
 import StatusBadge from '../Common/StatusBadge';
 import Modal from '../Common/Modal';
+import DeleteConfirmationModal from '../Common/DeleteConfirmationModal';
+import ExportButton from '../Common/ExportButton';
 import appointmentApi from './appointmentApi';
+
 import { getUserTypes } from '../Enquiries/EnquiryApi';
 import AddEditAppointment from './AddEditAppointment';
 import AppointmentDetails from './AppointmentDetails';
@@ -94,7 +97,12 @@ const VideoCallAppointmentsList = ({ currentUser }) => {
   const [showAddAppointment, setShowAddAppointment] = useState(false);
   const [showEditAppointment, setShowEditAppointment] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [appointmentToDelete, setAppointmentToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
 
   // Use useRef to store the search timeout
   const searchTimeoutRef = useRef(null);
@@ -154,7 +162,7 @@ const VideoCallAppointmentsList = ({ currentUser }) => {
     }
   }, []);
 
-  const SOURCES = ['VideoCall', 'Website', 'Phone', 'Email'];
+  const SOURCES = ['WhatsApp', 'Phone', 'VideoCall', 'Website'];
   const STATUSES = ['New', 'Scheduled', 'Completed', 'Cancelled'];
   const STAFF_ROLES = ['SuperAdmin', 'Admin', 'Manager', 'Sales', 'Support'];
   const ROLES = [
@@ -302,12 +310,20 @@ const VideoCallAppointmentsList = ({ currentUser }) => {
     setShowFilters(false);
   }, []);
 
-  const handleDeleteAppointment = async (appointmentId) => {
-    if (!window.confirm('Are you sure you want to delete this appointment? This action cannot be undone.')) return;
+  const handleDeleteAppointment = (appointmentId) => {
+    const appointment = appointments.find(a => a.id === appointmentId);
+    setAppointmentToDelete(appointment);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteAppointment = async () => {
+    if (!appointmentToDelete) return;
 
     try {
-      await appointmentApi.deleteAppointment(appointmentId);
-      setAppointments((prev) => prev.filter((appt) => appt.id !== appointmentId));
+      setDeleting(true);
+      await appointmentApi.deleteAppointment(appointmentToDelete.id);
+      setAppointments((prev) => prev.filter((appt) => appt.id !== appointmentToDelete.id));
+      setShowDeleteModal(false);
       setShowDetailsModal(false);
       setSelectedAppointment(null);
       showToast('Appointment deleted successfully!');
@@ -320,8 +336,12 @@ const VideoCallAppointmentsList = ({ currentUser }) => {
     } catch (err) {
       console.error('Error deleting appointment:', err);
       showToast(err.message || 'Failed to delete appointment. Please try again.', 'error');
+    } finally {
+      setDeleting(false);
+      setAppointmentToDelete(null);
     }
   };
+
 
   const handleEditClick = (appointment) => {
     setSelectedAppointment(appointment);
@@ -552,13 +572,89 @@ const VideoCallAppointmentsList = ({ currentUser }) => {
         </div>
         <div className="flex space-x-3">
           {isStaff && (
-            <button
-              onClick={() => setShowAddAppointment(true)}
-              className="flex items-center px-4 py-2 space-x-2 text-white rounded-lg bg-primary hover:bg-red-600 transition-colors shadow-sm"
-            >
-              <Plus size={16} />
-              <span>Add Appointment</span>
-            </button>
+            <>
+              <ExportButton
+                data={appointments} // Pass appointments for count display
+                columns={[
+                  { key: 'appointmentId', header: 'Appointment #' },
+                  { key: 'customer', header: 'Customer' },
+                  { key: 'email', header: 'Email' },
+                  { key: 'phone', header: 'Phone' },
+                  { key: 'videoCallDate', header: 'Date' },
+                  { key: 'videoCallTime', header: 'Time' },
+                  { key: 'status', header: 'Status' },
+                  { key: 'source', header: 'Source' },
+                  { key: 'notes', header: 'Notes' },
+                  { key: 'createdAt', header: 'Created Date' },
+                ]}
+                filename="video-call-appointments"
+                loading={exporting}
+                hasFilters={hasActiveFilters}
+                onExport={async (format, exportType) => {
+                  setExporting(true);
+                  try {
+                    let allData = [];
+
+                    if (exportType === 'all') {
+                      let page = 1;
+                      let hasMore = true;
+
+                      while (hasMore) {
+                        const response = await appointmentApi.getAllAppointments({
+                          page,
+                          limit: 100,
+                          ...filters,
+                          includeNotes: true,
+                        });
+                        const data = response.data || [];
+                        allData = [...allData, ...data];
+
+                        const totalPages = response.pagination?.totalPages || 1;
+                        hasMore = page < totalPages;
+                        page++;
+                      }
+                    } else {
+                      const response = await appointmentApi.getAllAppointments({
+                        page: currentPage,
+                        limit: pageSize,
+                        ...filters,
+                        includeNotes: true,
+                      });
+                      allData = response.data || [];
+                    }
+
+                    return allData.map(a => ({
+                      appointmentId: a.id,
+                      customer: a.name,
+                      email: a.email,
+                      phone: a.phoneNo,
+                      videoCallDate: a.videoCallDate,
+                      videoCallTime: a.videoCallTime,
+                      status: a.status,
+                      source: a.source || 'VideoCall',
+                      notes: a.internalNotes ? a.internalNotes.map(n => n.note).join('; ') : '-',
+                      createdAt: new Date(a.createdAt).toLocaleDateString('en-IN'),
+                    }));
+                  } catch (err) {
+                    console.error('Export failed:', err);
+                    showToast('Export failed. Please try again.', 'error');
+                    return null;
+                  } finally {
+                    setExporting(false);
+                  }
+                }}
+                totalRecords={totalItems}
+                currentPage={currentPage}
+                totalPages={totalPages}
+              />
+              <button
+                onClick={() => setShowAddAppointment(true)}
+                className="flex items-center px-4 py-2 space-x-2 text-white rounded-lg bg-primary hover:bg-red-600 transition-colors shadow-sm"
+              >
+                <Plus size={16} />
+                <span>Add Appointment</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -812,22 +908,20 @@ const VideoCallAppointmentsList = ({ currentUser }) => {
       />
 
       {/* Appointment Details Modal */}
-      <AddEditAppointment
+      <AppointmentDetails
         isOpen={showDetailsModal}
         onClose={() => {
           setSelectedAppointment(null);
           setShowDetailsModal(false);
         }}
-        onSave={(savedAppointment) => {
-          handleAppointmentUpdated(savedAppointment);
-        }}
-        onToast={showToast}
-        currentUser={currentUser}
         appointment={selectedAppointment}
-        title={`Appointment Details - ${selectedAppointment?.id}`}
-        sources={SOURCES}
-        statuses={STATUSES}
-        readOnly={true}
+        onStatusUpdate={handleStatusUpdate}
+        onAppointmentDeleted={(id) => {
+          setAppointments(prev => prev.filter(appt => appt.id !== id));
+          setShowDetailsModal(false);
+          setSelectedAppointment(null);
+        }}
+        isStaff={isStaff}
       />
 
       {/* Internal Notes Modal */}
@@ -845,6 +939,16 @@ const VideoCallAppointmentsList = ({ currentUser }) => {
           onToast={showToast}
         />
       </Modal>
+
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={confirmDeleteAppointment}
+        title="Delete Appointment"
+        message={`Are you sure you want to delete appointment #${appointmentToDelete?.id} for ${appointmentToDelete?.name}? This action cannot be undone.`}
+        loading={deleting}
+        itemDisplayName={`Appointment #${appointmentToDelete?.id}`}
+      />
     </div>
   );
 };

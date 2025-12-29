@@ -121,18 +121,7 @@ const ProductDetails = ({ product, getImageUrl, formatRating }) => {
           <div className="space-y-2">
             <div><strong>Brand Name:</strong> {product.brandName || 'None'}</div>
             <div><strong>Design Number:</strong> {product.designNumber || 'None'}</div>
-            {Array.isArray(product.colors) && product.colors.length > 0 && (
-              <div>
-                <strong>Colors:</strong>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {product.colors.map((color, index) => (
-                    <span key={index} className="inline-block px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">
-                      {color}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+
           </div>
         </InfoCard>
 

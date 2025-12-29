@@ -181,7 +181,7 @@ const validateInput = (data, requiredFields, options = {}) => {
 
 export const createEnquiry = async (enquiryData) => {
   try {
-    const validSources = ['Email', 'WhatsApp', 'Phone', 'VideoCall'];
+    const validSources = ['WhatsApp', 'Phone', 'VideoCall', 'Website'];
     const currentUser = getCurrentUserFromToken();
 
     // Ensure userId is an integer or null (not undefined or string)
@@ -209,7 +209,7 @@ export const createEnquiry = async (enquiryData) => {
         state: enquiryData.state?.trim(),
         city: enquiryData.city?.trim(),
         userType: enquiryData.userType || 'General',
-        source: enquiryData.source || 'Email',
+        source: enquiryData.source || 'Website',
         notes: enquiryData.notes?.trim() || null,
         videoCallDate: enquiryData.videoCallDate || null,
         videoCallTime: enquiryData.videoCallTime || null,
@@ -242,7 +242,7 @@ export const createEnquiry = async (enquiryData) => {
 export const getAllEnquiries = async ({ page = 1, limit = 10, search, status, source, userType, state, city, role, pincode, priority, startDate, endDate, includeNotes = false }) => {
   try {
     const validStatuses = ['New', 'InProgress', 'Confirmed', 'Delivered', 'Rejected'];
-    const validSources = ['Email', 'WhatsApp', 'Phone', 'VideoCall'];
+    const validSources = ['WhatsApp', 'Phone', 'VideoCall', 'Website'];
 
     validateInput({ page, limit, pincode }, ['page', 'limit'], { validStatuses, validSources, validatePincode: true });
 
@@ -290,7 +290,7 @@ export const getEnquiryById = async (id, includeNotes = false) => {
 export const updateEnquiry = async (id, enquiryData) => {
   try {
     const validStatuses = ['New', 'InProgress', 'Confirmed', 'Delivered', 'Rejected'];
-    const validSources = ['Email', 'WhatsApp', 'Phone', 'VideoCall'];
+    const validSources = ['WhatsApp', 'Phone', 'VideoCall', 'Website'];
 
     const formattedData = validateInput(
       {
@@ -301,7 +301,7 @@ export const updateEnquiry = async (id, enquiryData) => {
         state: enquiryData.state?.trim(),
         city: enquiryData.city?.trim(),
         userType: enquiryData.userType || 'General',
-        source: enquiryData.source || 'Email',
+        source: enquiryData.source || 'Website',
         notes: enquiryData.notes?.trim() || null,
         videoCallDate: enquiryData.videoCallDate || null,
         videoCallTime: enquiryData.videoCallTime || null,

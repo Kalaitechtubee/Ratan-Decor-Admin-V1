@@ -35,11 +35,14 @@ import {
 import { useSearchParams } from 'react-router-dom';
 import CategoryTable from './CategoryTable';
 import CategoryModals from './CategoryModals';
+import DeleteConfirmationModal from '../Common/DeleteConfirmationModal';
+
 
 // Category Component - Redesigned with tabbed interface and table view
 const Category = ({ currentUser }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [categories, setCategories] = useState([]);
+  const [mainCategories, setMainCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -55,6 +58,8 @@ const Category = ({ currentUser }) => {
   // URL-driven states
   const activeTab = searchParams.get('tab') || 'categories';
   const searchTerm = searchParams.get('search') || '';
+  const typeFilter = searchParams.get('type') || 'all';
+  const parentFilter = searchParams.get('parent') || '';
   const currentPage = parseInt(searchParams.get('page')) || 1;
 
   const setActiveTab = (tab) => {
@@ -79,6 +84,24 @@ const Category = ({ currentUser }) => {
   const setPage = (page) => {
     const params = new URLSearchParams(searchParams);
     params.set('page', page.toString());
+    setSearchParams(params);
+  };
+
+  const setTypeFilter = (type) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('type', type);
+    params.set('page', '1');
+    if (type !== 'sub' && type !== 'all') {
+      params.delete('parent');
+    }
+    setSearchParams(params);
+  };
+
+  const setParentFilter = (parentId) => {
+    const params = new URLSearchParams(searchParams);
+    if (parentId) params.set('parent', parentId);
+    else params.delete('parent');
+    params.set('page', '1');
     setSearchParams(params);
   };
 
@@ -122,6 +145,11 @@ const Category = ({ currentUser }) => {
   const [showCategorySelector, setShowCategorySelector] = useState(false);
   const [availableCategories, setAvailableCategories] = useState([]);
   const [categoryToDelete, setCategoryToDelete] = useState(null);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
 
   const handlePageChange = (newPage) => {
     if (newPage < 1 || newPage > pagination.totalPages) return;
@@ -277,7 +305,7 @@ const Category = ({ currentUser }) => {
       console.log('Category: User role set:', user.user?.role, 'isAdminOrManager:', user.user?.role === 'Admin' || user.user?.role === 'Manager' || user.user?.role === 'SuperAdmin');
     }
     fetchCategories();
-  }, []);
+  }, [typeFilter, parentFilter]);
 
   useEffect(() => {
     const parentIdFromUrl = searchParams.get('parentId');
@@ -334,12 +362,16 @@ const Category = ({ currentUser }) => {
     setLoading(true);
     setError(null);
     try {
-      console.log('Category: Fetching categories...');
-      const response = await getCategories({ includeSubcategories: true });
+      console.log('Category: Fetching categories with filters:', { type: typeFilter, parentId: parentFilter });
+      const response = await getCategories({
+        includeSubcategories: true,
+        type: typeFilter !== 'all' ? typeFilter : '',
+        parentId: parentFilter || null
+      });
       if (response.success) {
         setCategories(response.categories || []);
 
-        // Calculate totals
+        // Calculate totals (only if not filtered, or recalculate based on what's visible)
         const cats = response.categories || [];
         let totalSub = 0;
         let totalProd = 0;
@@ -351,11 +383,14 @@ const Category = ({ currentUser }) => {
           });
         });
 
-        setSummary({
-          totalCategories: cats.length,
-          totalSubcategories: totalSub,
-          totalProducts: totalProd
-        });
+        if (typeFilter === 'all' && !parentFilter) {
+          setSummary({
+            totalCategories: cats.length,
+            totalSubcategories: totalSub,
+            totalProducts: totalProd
+          });
+          setMainCategories(cats.filter(c => !c.parentId));
+        }
 
         console.log(`Category: Loaded ${cats.length} categories`);
       } else {
@@ -548,13 +583,20 @@ const Category = ({ currentUser }) => {
     }
   };
 
-  const handleDeleteCategory = async (id, name) => {
+  const handleDeleteCategory = (id, name) => {
     if (!isAdminOrManager) {
       console.log('Category: Delete category aborted: User is not admin or manager');
       return;
     }
+    setItemToDelete({ id, name });
+    setShowDeleteModal(true);
+  };
 
-    setItemLoading(`delete-${id}`, true);
+  const confirmDeleteCategoryOrSub = async () => {
+    if (!itemToDelete) return;
+    const { id, name } = itemToDelete;
+
+    setDeleting(true);
     try {
       console.log(`Category: Attempting to delete category ID: ${id}, Name: ${name}`);
       const response = await deleteCategory(id);
@@ -578,9 +620,11 @@ const Category = ({ currentUser }) => {
             }
           }
         }
+        setShowDeleteModal(false);
         console.log(`Category: Category "${name}" (ID: ${id}) deleted successfully:`, response);
         return;
       }
+
 
       if (response.canForceDelete && response.activeProductsCount > 0) {
         console.log(`Category: Category "${name}" (ID: ${id}) has ${response.activeProductsCount} active products, prompting for relocation`);
@@ -609,9 +653,11 @@ const Category = ({ currentUser }) => {
     } catch (err) {
       console.log('Category: Delete category error:', err.message || 'Unknown error');
     } finally {
-      setItemLoading(`delete-${id}`, false);
+      setDeleting(false);
+      setItemToDelete(null);
     }
   };
+
 
   const handleCategorySelection = async (targetCategoryId) => {
     if (!targetCategoryId || !categoryToDelete) {
@@ -884,6 +930,35 @@ const Category = ({ currentUser }) => {
               >
                 <X size={16} />
               </button>
+            )}
+          </div>
+
+          {/* Filters */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <Filter size={16} className="text-gray-400" />
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="all">All Types</option>
+                <option value="main">Main Categories</option>
+                <option value="sub">Subcategories</option>
+              </select>
+            </div>
+
+            {(typeFilter === 'sub' || typeFilter === 'all') && (
+              <select
+                value={parentFilter}
+                onChange={(e) => setParentFilter(e.target.value)}
+                className="p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20 max-w-[200px]"
+              >
+                <option value="">All Parents</option>
+                {mainCategories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
             )}
           </div>
 
@@ -1180,6 +1255,17 @@ const Category = ({ currentUser }) => {
         availableCategories={availableCategories}
         setAvailableCategories={setAvailableCategories}
         handleCategorySelection={handleCategorySelection}
+        selectionSource={activeTab}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={confirmDeleteCategoryOrSub}
+        title={`Delete ${activeTab === 'categories' ? 'Category' : 'Subcategory'}`}
+        message={`Are you sure you want to delete ${itemToDelete?.name}? This action cannot be undone.`}
+        loading={deleting}
+        itemDisplayName={itemToDelete?.name}
       />
     </div>
   );
