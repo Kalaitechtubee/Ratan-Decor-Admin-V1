@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Loader2, Edit } from 'lucide-react';
+import { Loader2, Edit, MessageSquare, Mail, Phone, User, Briefcase, MapPin, Package, FileText, Calendar, Clock, X } from 'lucide-react';
 import Modal from '../Common/Modal';
 import StatusBadge from '../Common/StatusBadge';
 import { getEnquiryById, getInternalNotes } from './EnquiryApi';
@@ -18,7 +18,7 @@ const ViewEnquiryModal = ({
   onEnquiryUpdated,
   userTypes = [],
   showToast,
-  onEditClick, // New prop to handle edit button click
+  onEditClick,
 }) => {
   const [enquiry, setEnquiry] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,7 +37,6 @@ const ViewEnquiryModal = ({
           const response = await getEnquiryById(enquiryId);
           setEnquiry(response.data);
 
-          // Fetch product details if needed
           if (response.data.productId && !response.data.product) {
             setProductLoading(true);
             try {
@@ -52,7 +51,6 @@ const ViewEnquiryModal = ({
             }
           }
 
-          // Fetch internal notes
           setLoadingNotes(true);
           try {
             const notesResponse = await getInternalNotes(enquiryId, { page: 1, limit: 5 });
@@ -96,7 +94,7 @@ const ViewEnquiryModal = ({
   const handleEditClick = () => {
     if (enquiry && onEditClick) {
       onEditClick(enquiry);
-      handleClose(); // Close the view modal
+      handleClose();
     }
   };
 
@@ -122,106 +120,173 @@ const ViewEnquiryModal = ({
     );
   }
 
-  // Helper function to render product details
   const renderProductDetails = () => {
-    const product = productDetails || enquiry.product;
+    const product = productDetails || enquiry.product || {};
 
-    if (!product) {
-      return <p><span className="font-medium">Product ID:</span> {enquiry.productId}</p>;
+    const details = [
+      { label: 'Product Name', value: product.name || '-' },
+      product.description && { label: 'Description', value: product.description },
+      product.brandName && { label: 'Brand', value: product.brandName },
+      (product.id || enquiry.productId) && { label: 'Product ID', value: product.id || enquiry.productId },
+      {
+        label: 'Design Number',
+        value: (enquiry.productDesignNumber && enquiry.productDesignNumber !== 'null' && enquiry.productDesignNumber !== 'undefined' && enquiry.productDesignNumber !== '-')
+          ? enquiry.productDesignNumber
+          : (product.designNumber || '-')
+      },
+      product.size && { label: 'Size', value: product.size },
+      product.thickness && { label: 'Thickness', value: product.thickness },
+      product.colors && { label: 'Colors', value: Array.isArray(product.colors) ? product.colors.join(', ') : null },
+      (user?.role === 'Architect' && product.architectPrice) ? { label: 'Architect Price', value: `₹${product.architectPrice}` } : null,
+      (user?.role === 'Dealer' && product.dealerPrice) ? { label: 'Dealer Price', value: `₹${product.dealerPrice}` } : null,
+      ((!user?.role || user?.role === 'General' || (!product.architectPrice && !product.dealerPrice)) && product.generalPrice) ? { label: 'General Price', value: `₹${product.generalPrice}` } : null,
+    ].filter(Boolean);
+
+    if (details.length === 0) {
+      return <p className="text-sm text-gray-500 italic">No product details available.</p>;
     }
 
     return (
-      <>
-        <p><span className="font-medium">Product Name:</span> {product.name || '-'}</p>
-        {product.description && <p><span className="font-medium">Description:</span> {product.description}</p>}
-        {product.brandName && <p><span className="font-medium">Brand:</span> {product.brandName}</p>}
-        <p><span className="font-medium">Product ID:</span> {product.id || '-'}</p>
-        <p><span className="font-medium">Design Number:</span> {
-          (enquiry.productDesignNumber && enquiry.productDesignNumber !== 'null' && enquiry.productDesignNumber !== 'undefined' && enquiry.productDesignNumber !== '-')
-            ? enquiry.productDesignNumber
-            : (product && product.designNumber ? product.designNumber : '-')
-        }</p>
-        {product.size && <p><span className="font-medium">Size:</span> {product.size}</p>}
-        {product.thickness && <p><span className="font-medium">Thickness:</span> {product.thickness}</p>}
-        {Array.isArray(product.colors) && product.colors.length > 0 && (
-          <p><span className="font-medium">Colors:</span> {product.colors.join(', ')}</p>
-        )}
-        {user?.role === 'Architect' && product.architectPrice && (
-          <p><span className="font-medium">Architect Price:</span> ₹{product.architectPrice}</p>
-        )}
-        {user?.role === 'Dealer' && product.dealerPrice && (
-          <p><span className="font-medium">Dealer Price:</span> ₹{product.dealerPrice}</p>
-        )}
-        {(!user?.role || user?.role === 'General' || (!product.architectPrice && !product.dealerPrice)) && product.generalPrice && (
-          <p><span className="font-medium">General Price:</span> ₹{product.generalPrice}</p>
-        )}
-      </>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+        {details.map((detail, index) => (
+          <div key={index} className="flex flex-col">
+            <span className="text-xs text-gray-500">{detail.label}</span>
+            <span className="text-sm font-medium text-gray-900">{detail.value || '-'}</span>
+          </div>
+        ))}
+      </div>
     );
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title={`Enquiry Details - ${enquiry.id}`} size="xl">
-      <div className="space-y-6 max-h-[70vh] overflow-y-auto">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <h3 className="mb-3 text-lg font-medium text-gray-900">Customer Information</h3>
-            <div className="space-y-2 text-sm">
-              <p>
-                <span className="font-medium">Name:</span> {enquiry.name}
-              </p>
-              <p>
-                <span className="font-medium">Email:</span> {enquiry.email}
-              </p>
-              <p>
-                <span className="font-medium">Phone:</span> {enquiry.phone || enquiry.phoneNo || '-'}
-              </p>
-              {enquiry.companyName && (
-                <p>
-                  <span className="font-medium">Company:</span> {enquiry.companyName}
-                </p>
-              )}
-              <p>
-                <span className="font-medium">User Type:</span> {enquiry.userTypeData?.name || getUserTypeName(enquiry.userType, userTypes)}
-              </p>
-              <p>
-                <span className="font-medium">Role:</span> {enquiry.role || '-'}
-              </p>
+    <Modal isOpen={isOpen} onClose={handleClose} title={`Enquiry Details - #${enquiry.id}`} size="xl">
+      <div className="space-y-6 max-h-[80vh] overflow-y-auto pr-2">
+        {/* Header Status Section */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-50 p-4 rounded-xl border border-gray-100 gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white rounded-lg shadow-sm text-primary">
+              <MessageSquare size={24} />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Enquiry Request</h3>
+              <p className="text-sm text-gray-500">Created on {new Date(enquiry.createdAt).toLocaleDateString()}</p>
             </div>
           </div>
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <h3 className="mb-3 text-lg font-medium text-gray-900">Location & Details</h3>
-            <div className="space-y-2 text-sm">
-              <p>
-                <span className="font-medium">City:</span> {enquiry.city || '-'}
-              </p>
-              <p>
-                <span className="font-medium">State:</span> {enquiry.state || '-'}
-              </p>
-              {enquiry.pincode && (
-                <p>
-                  <span className="font-medium">Pincode:</span> {enquiry.pincode}
-                </p>
-              )}
-              <p>
-                <span className="font-medium">Source:</span> {enquiry.source}
-              </p>
-              <p>
-                <span className="font-medium">Status:</span>
-                <span className="ml-2">
-                  <StatusBadge status={enquiry.status} type="enquiry" />
-                </span>
-              </p>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Status:</span>
+              <StatusBadge status={enquiry.status} type="enquiry" />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Source:</span>
+              <span className="px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800 border border-blue-200 capitalize">
+                {enquiry.source || 'Website'}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Product Details Section */}
-        {(enquiry.productId || enquiry.product) && (
-          <div className="p-4 bg-blue-50 rounded-lg">
-            <h3 className="mb-3 text-lg font-medium text-gray-900">Product Information</h3>
-            <div className="space-y-2 text-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Customer Information */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider border-b pb-2">Customer Information</h4>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <User size={18} className="text-gray-400 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{enquiry.name}</p>
+                  <p className="text-xs text-gray-500">Customer Name</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Mail size={18} className="text-gray-400 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900 text-break-all">{enquiry.email}</p>
+                  <p className="text-xs text-gray-500">Email Address</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Phone size={18} className="text-gray-400 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{enquiry.phone || enquiry.phoneNo || '-'}</p>
+                  <p className="text-xs text-gray-500">Phone Number</p>
+                </div>
+              </div>
+              {enquiry.companyName && (
+                <div className="flex items-start gap-3">
+                  <Briefcase size={18} className="text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{enquiry.companyName}</p>
+                    <p className="text-xs text-gray-500">Company Name</p>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-start gap-3">
+                <User size={18} className="text-gray-400 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    {enquiry.userTypeData?.name || getUserTypeName(enquiry.userType, userTypes)}
+                  </p>
+                  <p className="text-xs text-gray-500">User Type</p>
+                </div>
+              </div>
+              {enquiry.role && (
+                <div className="flex items-start gap-3">
+                  <User size={18} className="text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{enquiry.role}</p>
+                    <p className="text-xs text-gray-500">Role</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Location & Details */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider border-b pb-2">Location Information</h4>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <MapPin size={18} className="text-gray-400 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    {[enquiry.city, enquiry.state].filter(Boolean).join(', ') || '-'}
+                  </p>
+                  <p className="text-xs text-gray-500">City & State</p>
+                </div>
+              </div>
+              {enquiry.pincode && (
+                <div className="flex items-start gap-3">
+                  <MapPin size={18} className="text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{enquiry.pincode}</p>
+                    <p className="text-xs text-gray-500">Pincode</p>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-start gap-3">
+                <Calendar size={18} className="text-gray-400 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{new Date(enquiry.updatedAt).toLocaleDateString()}</p>
+                  <p className="text-xs text-gray-500">Last Updated</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Product Information */}
+        {(enquiry.productId || enquiry.product || enquiry.productDesignNumber) && (
+          <div className="space-y-3 pt-4 border-t border-gray-100">
+            <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+              <Package size={16} />
+              Product Information
+            </h4>
+            <div className="p-4 bg-blue-50/50 rounded-lg border border-blue-100">
               {productLoading ? (
-                <p>Loading product details...</p>
+                <div className="flex items-center gap-2 text-sm text-blue-600">
+                  <LoadingSpinner size="small" /> Loading product details...
+                </div>
               ) : (
                 renderProductDetails()
               )}
@@ -229,57 +294,35 @@ const ViewEnquiryModal = ({
           </div>
         )}
 
+        {/* Customer Notes */}
         {enquiry.notes && (
-          <div className="p-4 bg-yellow-50 rounded-lg">
-            <h3 className="mb-3 text-lg font-medium text-gray-900">Notes</h3>
-            <p className="text-sm text-gray-700">{enquiry.notes}</p>
+          <div className="space-y-3 pt-4 border-t border-gray-100">
+            <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+              <FileText size={16} />
+              Customer Notes
+            </h4>
+            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{enquiry.notes}</p>
+            </div>
           </div>
         )}
 
-        <div className="p-4 bg-indigo-50 rounded-lg">
-          <h3 className="mb-3 text-lg font-medium text-gray-900">Timeline</h3>
-          <div className="space-y-2 text-sm">
-            <p>
-              <span className="font-medium">Created:</span> {new Date(enquiry.createdAt).toLocaleString()}
-            </p>
-            <p>
-              <span className="font-medium">Last Updated:</span> {new Date(enquiry.updatedAt).toLocaleString()}
-            </p>
-          </div>
-        </div>
 
-        <div className="p-4 bg-green-50 rounded-lg">
-          <h3 className="mb-3 text-lg font-medium text-gray-900">Internal Notes</h3>
-          {loadingNotes ? (
-            <div className="flex justify-center">
-              <LoadingSpinner className="text-primary" />
-            </div>
-          ) : internalNotes.length > 0 ? (
-            <div className="space-y-2">
-              {internalNotes.map((note) => (
-                <div key={note.id} className="p-2 bg-white border rounded-lg">
-                  <p className="text-sm text-gray-700">{note.note}</p>
-                  <p className="text-xs text-gray-500">
-                    {note.noteType} by {note.staffUser?.name || 'Unknown'} on{' '}
-                    {new Date(note.createdAt).toLocaleString()}
-                    {note.isImportant && <span className="ml-2 text-red-500">★ Important</span>}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500">No internal notes available.</p>
-          )}
-        </div>
 
-        {/* Edit Button at the bottom */}
-        <div className="flex pt-4 space-x-3 border-t border-gray-200 mt-6">
+        {/* Footer Actions */}
+        <div className="flex justify-end pt-4 border-t border-gray-100 gap-3">
           <button
             onClick={handleEditClick}
             className="flex items-center px-4 py-2 space-x-2 text-primary rounded-lg border border-red-200 hover:bg-red-50 transition-colors"
           >
             <Edit size={16} />
-            <span>Edit Enquiry</span>
+            <span className="text-sm font-medium">Edit Enquiry</span>
+          </button>
+          <button
+            onClick={handleClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
+          >
+            Close
           </button>
         </div>
       </div>

@@ -23,6 +23,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import { getAllStaffUsers, getStaffUserById } from '../../services/Api';
 
+import ExportButton from '../Common/ExportButton';
+
 const StaffList = ({ currentUser, onToast }) => {
   const navigate = useNavigate();
   const [staffUsers, setStaffUsers] = useState([]);
@@ -36,6 +38,11 @@ const StaffList = ({ currentUser, onToast }) => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [summary, setSummary] = useState({
+    totalUsers: 0,
+    statusBreakdown: {},
+    roleBreakdown: {},
+  });
 
   const itemsPerPage = 10;
 
@@ -44,7 +51,6 @@ const StaffList = ({ currentUser, onToast }) => {
     { value: 'Sales', label: 'Sales' },
     { value: 'Support', label: 'Support' },
     { value: 'Admin', label: 'Admin' },
-    { value: 'Manager', label: 'Manager' },
     { value: 'SuperAdmin', label: 'SuperAdmin' }
   ];
 
@@ -79,6 +85,7 @@ const StaffList = ({ currentUser, onToast }) => {
 
       if (response.success) {
         setStaffUsers(response.staffUsers || []); // Use staffUsers from response
+        setSummary(response.summary || { totalUsers: 0, statusBreakdown: {}, roleBreakdown: {} });
         setTotalPages(response.pagination?.totalPages || 1);
         setTotalItems(response.pagination?.totalItems || 0);
       } else {
@@ -97,6 +104,8 @@ const StaffList = ({ currentUser, onToast }) => {
       setLoading(false);
     }
   };
+
+
 
   const handleViewUser = async (userId) => {
     try {
@@ -162,9 +171,111 @@ const StaffList = ({ currentUser, onToast }) => {
     console.log('Staff Users Updated:', staffUsers);
   }, [staffUsers]);
 
+  const exportColumns = [
+    { key: 'name', header: 'Name' },
+    { key: 'email', header: 'Email' },
+    { key: 'role', header: 'Role' },
+    { key: 'status', header: 'Status' },
+    { key: 'mobile', header: 'Mobile' },
+    { key: 'createdAt', header: 'Created Date' },
+    { key: 'company', header: 'Company' }
+  ];
+
+  const handleExportData = async (format, type) => {
+    try {
+      if (type === 'all') {
+        const response = await getAllStaffUsers({
+          page: 1,
+          limit: 'all',
+          search: searchTerm,
+          role: roleFilter,
+          status: statusFilter
+        });
+
+        if (response.success && response.staffUsers) {
+          return response.staffUsers.map(user => ({
+            ...user,
+            createdAt: new Date(user.createdAt).toLocaleDateString()
+          }));
+        }
+        return [];
+      }
+      return staffUsers.map(user => ({
+        ...user,
+        createdAt: new Date(user.createdAt).toLocaleDateString()
+      }));
+    } catch (error) {
+      console.error('Export error:', error);
+      if (onToast) onToast('Failed to fetch export data', 'error');
+      return [];
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {[
+            { label: 'Total Staff', icon: Users, color: 'blue', value: summary.totalUsers || 0, status: '', role: '' },
+            // { label: 'Pending', icon: Clock, color: 'yellow', value: summary.statusBreakdown?.['Pending'] || 0, status: 'Pending', role: '' },
+            { label: 'Admin', icon: Shield, color: 'purple', value: summary.roleBreakdown?.['Admin'] || 0, status: '', role: 'Admin' },
+            { label: 'Sales', icon: Shield, color: 'green', value: summary.roleBreakdown?.['Sales'] || 0, status: '', role: 'Sales' },
+            { label: 'Support', icon: Shield, color: 'red', value: summary.roleBreakdown?.['Support'] || 0, status: '', role: 'Support' },
+          ].map((stat) => {
+            const Icon = stat.icon;
+            const isActive = (stat.status && statusFilter === stat.status) || (stat.role && roleFilter === stat.role);
+            const colors = {
+              blue: { bg: 'bg-blue-100', text: 'text-blue-600', border: 'border-blue-500', ring: 'ring-blue-500/20' },
+              yellow: { bg: 'bg-yellow-100', text: 'text-yellow-600', border: 'border-yellow-500', ring: 'ring-yellow-500/20' },
+              green: { bg: 'bg-green-100', text: 'text-green-600', border: 'border-green-500', ring: 'ring-green-500/20' },
+              red: { bg: 'bg-red-100', text: 'text-red-600', border: 'border-red-500', ring: 'ring-red-500/20' },
+              purple: { bg: 'bg-purple-100', text: 'text-purple-600', border: 'border-purple-500', ring: 'ring-purple-500/20' },
+              indigo: { bg: 'bg-indigo-100', text: 'text-indigo-600', border: 'border-indigo-500', ring: 'ring-indigo-500/20' },
+            };
+            const c = colors[stat.color] || colors.blue;
+
+            return (
+              <div
+                key={stat.label}
+                className={`p-4 bg-white rounded-lg shadow-sm border-2 cursor-pointer transition-all hover:shadow-md ${isActive ? `${c.border} ring-2 ${c.ring}` : 'border-transparent'}`}
+                onClick={() => {
+                  if (stat.status) {
+                    // Clicking status card: set status, clear role
+                    setStatusFilter(stat.status);
+                    setRoleFilter('');
+                    setCurrentPage(1);
+                    navigate(`/staff-list?status=${stat.status}`);
+                  } else if (stat.role) {
+                    // Clicking role card: set role, clear status
+                    setRoleFilter(stat.role);
+                    setStatusFilter('');
+                    setCurrentPage(1);
+                    navigate(`/staff-list?role=${stat.role}`);
+                  } else {
+                    // Clear all filters
+                    setStatusFilter('');
+                    setRoleFilter('');
+                    setSearchTerm('');
+                    setCurrentPage(1);
+                    navigate('/staff-list');
+                  }
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 ${c.bg} rounded-lg`}>
+                    <Icon className={`w-5 h-5 ${c.text}`} size={18} />
+                  </div>
+                  <div>
+                    <p className={`text-2xl font-bold ${isActive ? c.text : 'text-gray-900'}`}>{stat.value}</p>
+                    <p className="text-xs text-gray-500">{stat.label}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
         {/* Header */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -176,6 +287,15 @@ const StaffList = ({ currentUser, onToast }) => {
               <p className="mt-1 text-gray-600">View and manage all staff users</p>
             </div>
             <div className="flex items-center gap-3">
+              <ExportButton
+                data={staffUsers}
+                columns={exportColumns}
+                filename="staff_users"
+                totalRecords={totalItems}
+                currentPage={currentPage}
+                hasFilters={!!(searchTerm || roleFilter || statusFilter)}
+                onExport={handleExportData}
+              />
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className="flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
@@ -197,7 +317,7 @@ const StaffList = ({ currentUser, onToast }) => {
         {/* Filters */}
         {showFilters && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Search */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -221,22 +341,6 @@ const StaffList = ({ currentUser, onToast }) => {
                   {staffRoles.map((role) => (
                     <option key={role.value} value={role.value}>
                       {role.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Status Filter */}
-              <div>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="">All Statuses</option>
-                  {statusOptions.map((status) => (
-                    <option key={status.value} value={status.value}>
-                      {status.label}
                     </option>
                   ))}
                 </select>
@@ -386,8 +490,8 @@ const StaffList = ({ currentUser, onToast }) => {
                               key={page}
                               onClick={() => handlePageChange(page)}
                               className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${page === currentPage
-                                  ? 'z-10 bg-primary border-primary text-white'
-                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                                ? 'z-10 bg-primary border-primary text-white'
+                                : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                                 }`}
                             >
                               {page}

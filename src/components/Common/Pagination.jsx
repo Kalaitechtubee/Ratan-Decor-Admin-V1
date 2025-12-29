@@ -1,103 +1,92 @@
 import React from 'react';
-import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { getPaginationPages } from './paginationLogic';
 
 const Pagination = ({
   currentPage,
   totalPages,
-  onPageChange
+  onPageChange,
 }) => {
-  if (totalPages <= 1) return null;
+  if (!totalPages || totalPages <= 1) return null;
 
-  const getMiddlePages = () => {
-    if (totalPages <= 3) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-    }
-
-    // Near start
-    if (currentPage <= 2) {
-      return [1, 2, 3];
-    }
-
-    // Near end
-    if (currentPage >= totalPages - 1) {
-      return [totalPages - 2, totalPages - 1, totalPages];
-    }
-
-    // Middle
-    return [currentPage - 1, currentPage, currentPage + 1];
-  };
-
-  const pages = getMiddlePages();
+  const pages = getPaginationPages(currentPage, totalPages);
+  const showEllipsisLeft = totalPages > 3 && currentPage > 2;
+  const showEllipsisRight = totalPages > 3 && currentPage < totalPages - 1;
 
   return (
-    <div className="flex items-center justify-center gap-2 mt-6 select-none">
+    <div className="flex items-center justify-between px-4 py-3 bg-white border-t">
 
-      {/* Prev */}
-      <button
-        onClick={() => onPageChange(currentPage - 1)}
-        disabled={currentPage === 1}
-        className={`p-2 rounded-md border transition
-          ${currentPage === 1
-            ? 'text-gray-400 border-gray-200 cursor-not-allowed'
-            : 'text-primary border-primary/30 hover:bg-primary/10'
-          }`}
-      >
-        <FaChevronLeft />
-      </button>
+      {/* Left info */}
+      <p className="text-sm text-gray-500">
+        Page <span className="font-semibold">{currentPage}</span> of{' '}
+        <span className="font-semibold">{totalPages}</span>
+      </p>
 
-      {/* First page */}
-      {pages[0] > 1 && (
-        <>
-          <button
-            onClick={() => onPageChange(1)}
-            className="px-3 py-1 rounded-md border border-primary/30 text-primary hover:bg-primary/10"
-          >
-            1
-          </button>
-          <span className="text-gray-400">…</span>
-        </>
-      )}
+      {/* Controls */}
+      <div className="flex items-center gap-1">
 
-      {/* Middle (ONLY 3 NUMBERS) */}
-      {pages.map((page) => (
+        {/* First */}
         <button
-          key={page}
-          onClick={() => onPageChange(page)}
-          className={`px-4 py-1 rounded-md border transition
-            ${page === currentPage
-              ? 'bg-primary text-white border-primary'
-              : 'border-primary/30 text-primary hover:bg-primary/10'
-            }`}
+          onClick={() => onPageChange(1)}
+          disabled={currentPage === 1}
+          className="px-3 py-2 text-sm border rounded-lg disabled:opacity-40 hover:bg-gray-100"
         >
-          {page}
+          First
         </button>
-      ))}
 
-      {/* Last page */}
-      {pages[pages.length - 1] < totalPages && (
-        <>
-          <span className="text-gray-400">…</span>
+        {/* Prev */}
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="p-2 border rounded-lg disabled:opacity-40 hover:bg-gray-100"
+        >
+          <ChevronLeft size={16} />
+        </button>
+
+        {/* Left dots */}
+        {showEllipsisLeft && (
+          <span className="px-2 text-gray-400">...</span>
+        )}
+
+        {/* Page Numbers (MAX 3) */}
+        {pages.map(page => (
           <button
-            onClick={() => onPageChange(totalPages)}
-            className="px-3 py-1 rounded-md border border-primary/30 text-primary hover:bg-primary/10"
+            key={page}
+            onClick={() => onPageChange(page)}
+            className={`px-3 py-2 text-sm rounded-lg border transition
+              ${page === currentPage
+                ? 'bg-primary text-white border-primary'
+                : 'hover:bg-gray-100'
+              }
+            `}
           >
-            {totalPages}
+            {page}
           </button>
-        </>
-      )}
+        ))}
 
-      {/* Next */}
-      <button
-        onClick={() => onPageChange(currentPage + 1)}
-        disabled={currentPage === totalPages}
-        className={`p-2 rounded-md border transition
-          ${currentPage === totalPages
-            ? 'text-gray-400 border-gray-200 cursor-not-allowed'
-            : 'text-primary border-primary/30 hover:bg-primary/10'
-          }`}
-      >
-        <FaChevronRight />
-      </button>
+        {/* Right dots */}
+        {showEllipsisRight && (
+          <span className="px-2 text-gray-400">...</span>
+        )}
+
+        {/* Next */}
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="p-2 border rounded-lg disabled:opacity-40 hover:bg-gray-100"
+        >
+          <ChevronRight size={16} />
+        </button>
+
+        {/* Last */}
+        <button
+          onClick={() => onPageChange(totalPages)}
+          disabled={currentPage === totalPages}
+          className="px-3 py-2 text-sm border rounded-lg disabled:opacity-40 hover:bg-gray-100"
+        >
+          Last
+        </button>
+      </div>
     </div>
   );
 };

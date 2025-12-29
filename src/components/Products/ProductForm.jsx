@@ -214,10 +214,7 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
     setFormProduct((prev) => ({ ...prev, categoryId: value, subcategoryId: '' }));
   };
 
-  const handleColorsChange = (e) => {
-    const value = e.target.value.split(',').map((c) => c.trim()).filter((c) => c);
-    setFormProduct((prev) => ({ ...prev, colors: value }));
-  };
+
 
   const handleIsActiveChange = (e) => {
     setFormProduct((prev) => ({ ...prev, isActive: e.target.value === 'active' }));
@@ -646,16 +643,7 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
         />
       </div>
 
-      <div>
-        <label className="block mb-2 text-sm font-medium text-gray-700">Colors</label>
-        <input
-          type="text"
-          placeholder="Enter colors (comma-separated)"
-          value={(Array.isArray(formProduct.colors) ? formProduct.colors : []).join(', ')}
-          onChange={handleColorsChange}
-          className="px-3 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
-        />
-      </div>
+
 
       <div>
         <label className="block mb-2 text-sm font-medium text-gray-700">GST (%)</label>

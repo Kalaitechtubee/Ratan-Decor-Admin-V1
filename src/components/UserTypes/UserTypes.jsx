@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { UserPlus, Image as ImageIcon } from 'lucide-react';
+import DeleteConfirmationModal from '../Common/DeleteConfirmationModal';
+
 import { getUserTypes, createUserType, updateUserType, deleteUserType } from '../../services/Api';
 
 // Helper component to handle icon display with error handling
@@ -39,6 +41,10 @@ function UserTypes() {
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
   const [errors, setErrors] = useState({ name: '' });
   const [iconPreview, setIconPreview] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userTypeToDelete, setUserTypeToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
 
   const isInitialLoadedRef = useRef(false);
   const isFetchingRef = useRef(false);
@@ -59,7 +65,7 @@ function UserTypes() {
       console.log('UserTypes: Fetching user types...');
       const response = await getUserTypes();
       console.log('UserTypes: Raw API response:', response);
-      
+
       if (response.success) {
         // Process the response to ensure iconUrl is included
         const processedUserTypes = (response.userTypes || []).map(ut => ({
@@ -122,7 +128,7 @@ function UserTypes() {
         ...prev,
         icon: file,
       }));
-      
+
       // Create preview URL
       const previewUrl = URL.createObjectURL(file);
       setIconPreview(previewUrl);
@@ -149,10 +155,10 @@ function UserTypes() {
         console.log('UserTypes: Updating user type:', { id: editingId });
         const response = await updateUserType(editingId, submitData);
         console.log('UserTypes: Update response:', response);
-        
+
         if (response.success) {
           // Update the user type in the list with the returned data including iconUrl
-          setUserTypes(userTypes.map((ut) => 
+          setUserTypes(userTypes.map((ut) =>
             ut.id === editingId ? {
               ...response.userType,
               iconUrl: response.userType.iconUrl || null
@@ -167,7 +173,7 @@ function UserTypes() {
         console.log('UserTypes: Creating user type');
         const response = await createUserType(submitData);
         console.log('UserTypes: Create response:', response);
-        
+
         if (response.success) {
           // Add the new user type to the list with iconUrl
           setUserTypes([...userTypes, {
@@ -189,9 +195,17 @@ function UserTypes() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this user type?')) return;
-    setLoading(true);
+  const handleDelete = (id) => {
+    const userType = userTypes.find(ut => ut.id === id);
+    setUserTypeToDelete(userType);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!userTypeToDelete) return;
+    const id = userTypeToDelete.id;
+
+    setDeleting(true);
     try {
       console.log('UserTypes: Deleting user type:', { id });
       const response = await deleteUserType(id);
@@ -199,7 +213,7 @@ function UserTypes() {
         const updatedUserTypes = userTypes.filter((ut) => ut.id !== id);
         setUserTypes(updatedUserTypes);
         console.log('UserTypes: User type deleted successfully');
-        alert('User type deleted successfully!');
+        setShowDeleteModal(false);
       } else {
         throw new Error(response.message || 'Failed to delete user type');
       }
@@ -207,9 +221,11 @@ function UserTypes() {
       console.error('UserTypes: Failed to delete user type:', error);
       alert(error.message || 'Failed to delete user type');
     } finally {
-      setLoading(false);
+      setDeleting(false);
+      setUserTypeToDelete(null);
     }
   };
+
 
   const handleEdit = (userType) => {
     console.log('UserTypes: Editing user type:', userType);
@@ -231,7 +247,7 @@ function UserTypes() {
     setIconPreview(null);
     setShowModal(false);
     setErrors({ name: '' });
-    
+
     // Clean up preview URL
     if (iconPreview && iconPreview.startsWith('blob:')) {
       URL.revokeObjectURL(iconPreview);
@@ -302,9 +318,6 @@ function UserTypes() {
           <h1 className="text-3xl font-bold text-primary">Manage Business Types</h1>
           <p className="text-gray-600 mt-1">Create, update, or delete Business Types for your application with modern efficiency.</p>
         </div>
-        <div className="text-sm text-gray-500">
-          Last updated: {new Date().toLocaleString()}
-        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-lg overflow-hidden">
@@ -360,8 +373,8 @@ function UserTypes() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredUserTypes.map((userType, index) => (
-                <div 
-                  key={userType.id} 
+                <div
+                  key={userType.id}
                   className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 animate-fade-in-left"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
@@ -445,9 +458,9 @@ function UserTypes() {
                 <label className="block text-sm font-medium text-gray-600 mb-2">Icon</label>
                 {iconPreview && (
                   <div className="mb-3 flex items-center space-x-3">
-                    <img 
-                      src={iconPreview} 
-                      alt="Icon preview" 
+                    <img
+                      src={iconPreview}
+                      alt="Icon preview"
                       className="w-16 h-16 rounded-lg object-cover border border-gray-200 bg-gray-50 p-1"
                     />
                     <button
@@ -502,8 +515,18 @@ function UserTypes() {
           </div>
         </div>
       )}
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={confirmDelete}
+        title="Delete User Type"
+        message={`Are you sure you want to delete ${userTypeToDelete?.name}? This action cannot be undone.`}
+        loading={deleting}
+        itemDisplayName={userTypeToDelete?.name}
+      />
     </div>
   );
 }
+
 
 export default UserTypes;

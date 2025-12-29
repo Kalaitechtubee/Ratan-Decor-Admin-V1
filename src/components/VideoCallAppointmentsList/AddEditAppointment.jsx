@@ -30,11 +30,10 @@ const FormInput = ({
       name={name}
       value={value || ""}
       onChange={onChange}
-      className={`w-full px-3 py-2 rounded-lg border transition-shadow text-sm ${
-        hasError
+      className={`w-full px-3 py-2 rounded-lg border transition-shadow text-sm ${hasError
           ? "border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent"
           : "border-gray-300 focus:ring-2 focus:ring-[#ff4747]/40 focus:border-[#ff4747]"
-      }`}
+        }`}
       {...props}
     />
     {hasError && <p className="mt-1 text-sm text-red-600">{hasError}</p>}
@@ -60,11 +59,10 @@ const FormSelect = ({
       name={name}
       value={value || ""}
       onChange={onChange}
-      className={`w-full px-3 py-2 rounded-lg border transition-shadow text-sm ${
-        hasError
+      className={`w-full px-3 py-2 rounded-lg border transition-shadow text-sm ${hasError
           ? "border-red-300 focus:ring-2 focus:ring-red-500 focus:border-transparent"
           : "border-gray-300 focus:ring-2 focus:ring-[#ff4747]/40 focus:border-[#ff4747]"
-      }`}
+        }`}
       {...props}
     >
       <option value="">Select {label}</option>
@@ -140,9 +138,8 @@ const TimePicker = ({ label, name, value, onChange, hasError, required }) => {
       {/* Input */}
       <div
         onClick={() => setOpen(!open)}
-        className={`w-full px-3 py-2 rounded-lg border bg-white cursor-pointer text-sm ${
-          hasError ? "border-red-300" : "border-gray-300"
-        }`}
+        className={`w-full px-3 py-2 rounded-lg border bg-white cursor-pointer text-sm ${hasError ? "border-red-300" : "border-gray-300"
+          }`}
       >
         {value || "--:-- --"}
       </div>
@@ -168,11 +165,10 @@ const TimePicker = ({ label, name, value, onChange, hasError, required }) => {
                       setSelectedHour(h);
                       updateTime(h, selectedMin, selectedAP);
                     }}
-                    className={`px-3 py-2 rounded cursor-pointer select-none text-sm ${
-                      selectedHour === h
+                    className={`px-3 py-2 rounded cursor-pointer select-none text-sm ${selectedHour === h
                         ? "bg-[#ff4747] text-white font-medium shadow-sm"
                         : "text-gray-700 hover:bg-[#ff4747]/10"
-                    }`}
+                      }`}
                   >
                     {h}
                   </div>
@@ -190,11 +186,10 @@ const TimePicker = ({ label, name, value, onChange, hasError, required }) => {
                       setSelectedMin(m);
                       updateTime(selectedHour, m, selectedAP);
                     }}
-                    className={`px-3 py-2 rounded cursor-pointer select-none text-sm ${
-                      selectedMin === m
+                    className={`px-3 py-2 rounded cursor-pointer select-none text-sm ${selectedMin === m
                         ? "bg-[#ff4747] text-white font-medium shadow-sm"
                         : "text-gray-700 hover:bg-[#ff4747]/10"
-                    }`}
+                      }`}
                   >
                     {m}
                   </div>
@@ -212,11 +207,10 @@ const TimePicker = ({ label, name, value, onChange, hasError, required }) => {
                       setSelectedAP(a);
                       updateTime(selectedHour, selectedMin, a);
                     }}
-                    className={`px-3 py-2 rounded cursor-pointer select-none text-sm ${
-                      selectedAP === a
+                    className={`px-3 py-2 rounded cursor-pointer select-none text-sm ${selectedAP === a
                         ? "bg-[#ff4747] text-white font-medium shadow-sm"
                         : "text-gray-700 hover:bg-[#ff4747]/10"
-                    }`}
+                      }`}
                   >
                     {a}
                   </div>
@@ -249,7 +243,7 @@ const AddEditAppointment = ({
   currentUser,
   appointment = null,
   title = "Add New Video Call Appointment",
-  sources = ["VideoCall", "Website", "Referral"],
+  sources = ["WhatsApp", "Phone", "VideoCall", "Website"],
   statuses = ["New", "Confirmed", "Completed", "Cancelled"],
 }) => {
   const [submitting, setSubmitting] = useState(false);
@@ -273,25 +267,25 @@ const AddEditAppointment = ({
       setFormData(
         appointment
           ? {
-              name: appointment.name || "",
-              email: appointment.email || "",
-              phoneNo: appointment.phoneNo || "",
-              videoCallDate: appointment.videoCallDate || "",
-              videoCallTime: appointment.videoCallTime || "",
-              source: appointment.source || "VideoCall",
-              notes: appointment.notes || "",
-              status: appointment.status || "New",
-            }
+            name: appointment.name || "",
+            email: appointment.email || "",
+            phoneNo: appointment.phoneNo || "",
+            videoCallDate: appointment.videoCallDate || "",
+            videoCallTime: appointment.videoCallTime || "",
+            source: appointment.source || "VideoCall",
+            notes: appointment.notes || "",
+            status: appointment.status || "New",
+          }
           : {
-              name: "",
-              email: "",
-              phoneNo: "",
-              videoCallDate: "",
-              videoCallTime: "",
-              source: "VideoCall",
-              notes: "",
-              status: "New",
-            }
+            name: "",
+            email: "",
+            phoneNo: "",
+            videoCallDate: "",
+            videoCallTime: "",
+            source: "VideoCall",
+            notes: "",
+            status: "New",
+          }
       );
       setValidationErrors({});
     }
@@ -316,7 +310,7 @@ const AddEditAppointment = ({
     requiredFields.forEach((field) => {
       if (!data[field]?.toString()?.trim()) {
         errors[field] =
-          `${field.charAt(0).toUpperCase() + field.slice(1).replace('No',' Number')} is required`;
+          `${field.charAt(0).toUpperCase() + field.slice(1).replace('No', ' Number')} is required`;
       }
     });
 
@@ -407,7 +401,7 @@ const AddEditAppointment = ({
       onToast &&
         onToast(
           err?.message ||
-            `Failed to ${isEdit ? 'update' : 'create'} appointment. Please try again.`,
+          `Failed to ${isEdit ? 'update' : 'create'} appointment. Please try again.`,
           "error"
         );
     } finally {

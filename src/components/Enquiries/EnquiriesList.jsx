@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Filter, Eye, Edit, AlertCircle, CheckCircle, Loader2, X, FileText, Trash2, Search, Calendar, Package, RefreshCw, Clock } from 'lucide-react';
+import { Plus, Filter, Eye, Edit, AlertCircle, CheckCircle, Loader2, X, FileText, Trash2, Search, Calendar, Package, RefreshCw, Clock, Truck } from 'lucide-react';
 import Table from '../Common/Table';
 import StatusBadge from '../Common/StatusBadge';
+import ExportButton from '../Common/ExportButton';
 import { getAllEnquiries, updateEnquiryStatus, deleteEnquiry, getUserTypes } from './EnquiryApi';
 import AddEnquiryForm from './AddEnquiryForm';
 import ViewEnquiryModal from './ViewEnquiryModal';
 import EditEnquiryModal from './EditEnquiryModal';
 import InternalNotesModal from './InternalNotesModal';
+import DeleteConfirmationModal from '../Common/DeleteConfirmationModal';
 import { getUser } from '../../utils/tokenHandler';
+
+
 
 const Toast = ({ message, type, onClose }) => {
   useEffect(() => {
@@ -62,7 +66,12 @@ const EnquiriesList = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showNotesModal, setShowNotesModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [enquiryToDelete, setEnquiryToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [toast, setToast] = useState(null);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [userTypes, setUserTypes] = useState([]);
   const [userRole, setUserRole] = useState(null);
@@ -135,7 +144,7 @@ const EnquiriesList = () => {
     { label: 'Sales', value: 'Sales' },
     { label: 'Support', value: 'Support' }
   ];
-  const SOURCES = ['Email', 'WhatsApp', 'Phone', 'VideoCall'];
+  const SOURCES = ['WhatsApp', 'Phone', 'VideoCall', 'Website'];
   const STATUSES = ['New', 'InProgress', 'Confirmed', 'Delivered', 'Rejected'];
 
   const hasActiveFilters = useMemo(() => {
@@ -273,25 +282,36 @@ const EnquiriesList = () => {
     setShowNotesModal(true);
   };
 
-  const handleDeleteClick = async (enquiry) => {
-    if (window.confirm(`Are you sure you want to delete enquiry #${enquiry.id}?`)) {
-      try {
-        await deleteEnquiry(enquiry.id);
-        setEnquiries((prev) => prev.filter((enq) => enq.id !== enquiry.id));
-        setTotalItems((prev) => prev - 1);
-        showToast('Enquiry deleted successfully!');
+  const handleDeleteClick = (enquiry) => {
+    setEnquiryToDelete(enquiry);
+    setShowDeleteModal(true);
+  };
 
-        if (enquiries.length === 1 && currentPage > 1) {
-          setCurrentPage((prev) => prev - 1);
-        } else {
-          fetchEnquiries(false);
-        }
-      } catch (err) {
-        console.error('Error deleting enquiry:', err);
-        showToast(err.message || 'Failed to delete enquiry. Please try again.', 'error');
+  const confirmDelete = async () => {
+    if (!enquiryToDelete) return;
+
+    try {
+      setDeleting(true);
+      await deleteEnquiry(enquiryToDelete.id);
+      setEnquiries((prev) => prev.filter((enq) => enq.id !== enquiryToDelete.id));
+      setTotalItems((prev) => prev - 1);
+      showToast('Enquiry deleted successfully!');
+
+      if (enquiries.length === 1 && currentPage > 1) {
+        setCurrentPage((prev) => prev - 1);
+      } else {
+        fetchEnquiries(false);
       }
+      setShowDeleteModal(false);
+    } catch (err) {
+      console.error('Error deleting enquiry:', err);
+      showToast(err.message || 'Failed to delete enquiry. Please try again.', 'error');
+    } finally {
+      setDeleting(false);
+      setEnquiryToDelete(null);
     }
   };
+
 
   const handleEnquiryAdded = (newEnquiry) => {
     setEnquiries((prev) => [newEnquiry, ...prev.slice(0, pageSize - 1)]);
@@ -485,6 +505,103 @@ const EnquiriesList = () => {
           <p className="text-gray-600">Track and manage customer product enquiries</p>
         </div>
         <div className="flex space-x-3">
+          {['Admin', 'Manager', 'SuperAdmin'].includes(userRole) && (
+            <ExportButton
+              data={enquiries} // Pass enquiries for count display, actual export handled by onExport
+              columns={[
+                { key: 'enquiryId', header: 'Enquiry #' },
+                { key: 'customer', header: 'Customer Name' },
+                { key: 'email', header: 'Email' },
+                { key: 'phone', header: 'Phone' },
+                { key: 'companyName', header: 'Company' },
+                { key: 'role', header: 'Role' },
+                { key: 'userType', header: 'User Type' },
+                { key: 'city', header: 'City' },
+                { key: 'state', header: 'State' },
+                { key: 'pincode', header: 'Pincode' },
+                { key: 'productName', header: 'Product Name' },
+                { key: 'productDesignNumber', header: 'Design Number' },
+                { key: 'generalPrice', header: 'General Price' },
+                { key: 'architectPrice', header: 'Architect Price' },
+                { key: 'dealerPrice', header: 'Dealer Price' },
+                { key: 'status', header: 'Status' },
+                // { key: 'priority', header: 'Priority' },
+                { key: 'source', header: 'Source' },
+                { key: 'notes', header: 'Notes' },
+                { key: 'createdAt', header: 'Created Date' },
+              ]}
+              filename="enquiries"
+              loading={exporting}
+              hasFilters={hasActiveFilters}
+              onExport={async (format, exportType) => {
+                setExporting(true);
+                try {
+                  let allData = [];
+
+                  if (exportType === 'all') {
+                    let page = 1;
+                    let hasMore = true;
+
+                    while (hasMore) {
+                      const response = await getAllEnquiries({
+                        page,
+                        limit: 100,
+                        ...filters,
+                        includeNotes: true, // Fetch notes for export
+                      });
+                      const data = response.data || [];
+                      allData = [...allData, ...data];
+
+                      const totalPages = response.pagination?.totalPages || 1;
+                      hasMore = page < totalPages;
+                      page++;
+                    }
+                  } else {
+                    // Current page export - fetch fresh to ensure we have notes/full details
+                    const response = await getAllEnquiries({
+                      page: currentPage,
+                      limit: pageSize,
+                      ...filters,
+                      includeNotes: true
+                    });
+                    allData = response.data || [];
+                  }
+
+                  return allData.map(e => ({
+                    enquiryId: e.id,
+                    customer: e.name || '-',
+                    email: e.email || '-',
+                    phone: e.phone || e.phoneNo || '-',
+                    companyName: e.companyName || '-',
+                    role: e.role === 'customer' ? 'Customer' : (e.role || '-'),
+                    userType: e.userTypeData?.name || '-',
+                    city: e.city || '-',
+                    state: e.state || '-',
+                    pincode: e.pincode || '-',
+                    productName: e.product?.name || '-',
+                    productDesignNumber: e.productDesignNumber || '-',
+                    generalPrice: e.product?.generalPrice ? `₹${e.product.generalPrice}` : '-',
+                    architectPrice: e.product?.architectPrice ? `₹${e.product.architectPrice}` : '-',
+                    dealerPrice: e.product?.dealerPrice ? `₹${e.product.dealerPrice}` : '-',
+                    status: e.status,
+                    priority: e.priority || '-',
+                    source: e.source || '-',
+                    notes: e.notes || '-',
+                    createdAt: new Date(e.createdAt).toLocaleDateString('en-IN'),
+                  }));
+                } catch (err) {
+                  console.error('Export failed:', err);
+                  showToast('Export failed. Please try again.', 'error');
+                  return null;
+                } finally {
+                  setExporting(false);
+                }
+              }}
+              totalRecords={totalItems}
+              currentPage={currentPage}
+              totalPages={totalPages}
+            />
+          )}
           <button
             onClick={() => setShowAddEnquiry(true)}
             className="flex items-center px-4 py-2 space-x-2 text-white rounded-lg bg-primary hover:bg-red-600 transition-colors shadow-sm"
@@ -496,12 +613,13 @@ const EnquiriesList = () => {
       </div>
 
       {/* Stats Cards - Matching Orders Page */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         {[
           { label: 'Total Enquiries', icon: Package, color: 'blue', value: summary.totalEnquiries, status: '' },
           { label: 'New', icon: AlertCircle, color: 'yellow', value: summary.statusBreakdown['New'] || 0, status: 'New' },
           { label: 'In Progress', icon: Clock, color: 'indigo', value: summary.statusBreakdown['InProgress'] || 0, status: 'InProgress', animate: true },
           { label: 'Confirmed', icon: CheckCircle, color: 'green', value: summary.statusBreakdown['Confirmed'] || 0, status: 'Confirmed' },
+          { label: 'Delivered', icon: Truck, color: 'teal', value: summary.statusBreakdown['Delivered'] || 0, status: 'Delivered' },
           { label: 'Rejected', icon: X, color: 'red', value: summary.statusBreakdown['Rejected'] || 0, status: 'Rejected' },
         ].map((stat) => {
           const Icon = stat.icon;
@@ -511,6 +629,7 @@ const EnquiriesList = () => {
             yellow: { bg: 'bg-yellow-100', text: 'text-yellow-600', border: 'border-yellow-500', ring: 'ring-yellow-500/20' },
             indigo: { bg: 'bg-indigo-100', text: 'text-indigo-600', border: 'border-indigo-500', ring: 'ring-indigo-500/20' },
             green: { bg: 'bg-green-100', text: 'text-green-600', border: 'border-green-500', ring: 'ring-green-500/20' },
+            teal: { bg: 'bg-teal-100', text: 'text-teal-600', border: 'border-teal-500', ring: 'ring-teal-500/20' },
             red: { bg: 'bg-red-100', text: 'text-red-600', border: 'border-red-500', ring: 'ring-red-500/20' },
           };
           const c = colors[stat.color] || colors.blue;
@@ -744,8 +863,19 @@ const EnquiriesList = () => {
         onNotesUpdated={handleNotesUpdated}
         showToast={showToast}
       />
+
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={confirmDelete}
+        title="Delete Enquiry"
+        message={`Are you sure you want to delete enquiry #${enquiryToDelete?.id}? This action cannot be undone.`}
+        loading={deleting}
+        itemDisplayName={`Enquiry #${enquiryToDelete?.id}`}
+      />
     </div>
   );
 };
+
 
 export default EnquiriesList;

@@ -1,6 +1,7 @@
-// src/components/Seo/SeoManagement.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { getAllSeo, getAllPageNames, updateSeo, createSeo, deleteSeo } from '../../services/Api';
+import { debounce } from 'lodash';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -10,7 +11,9 @@ const SeoManagement = () => {
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ pageName: '', title: '', description: '', keywords: [] });
   const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchTermFromUrl = searchParams.get('search') || '';
+  const [searchTerm, setSearchTerm] = useState(searchTermFromUrl);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -25,21 +28,45 @@ const SeoManagement = () => {
     fetchPageNames();
   }, []);
 
-  const fetchSeoData = async () => {
+  const fetchSeoData = async (search = '') => {
     try {
       setIsLoading(true);
-      const result = await getAllSeo();
+      const result = await getAllSeo({ search });
       const normalizedSeoList = result.seo.map((seo) => ({
         ...seo,
         keywords: Array.isArray(seo.keywords) ? seo.keywords : (seo.keywords ? seo.keywords.split(',') : []),
       }));
       setSeoList(normalizedSeoList);
     } catch (error) {
+      console.error('Fetch SEO error:', error);
       toast.error(error.message || 'Failed to fetch SEO data');
     } finally {
       setIsLoading(false);
     }
   };
+
+  const debouncedSetUrlParams = useCallback(
+    debounce((search) => {
+      const params = {};
+      if (search) params.search = search;
+      setSearchParams(params, { replace: true });
+    }, 500),
+    [setSearchParams]
+  );
+
+  const handleSearchChange = (value) => {
+    setSearchTerm(value);
+    debouncedSetUrlParams(value);
+  };
+
+  useEffect(() => {
+    fetchSeoData(searchTermFromUrl);
+  }, [searchTermFromUrl]);
+
+  // Sync internal state with URL if URL changes (e.g. back button)
+  useEffect(() => {
+    setSearchTerm(searchTermFromUrl);
+  }, [searchTermFromUrl]);
 
   const fetchPageNames = async () => {
     try {
@@ -144,11 +171,7 @@ const SeoManagement = () => {
     }
   };
 
-  const filteredSeoList = seoList.filter(seo =>
-    seo.pageName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    seo.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    seo.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredSeoList = seoList;
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -166,9 +189,9 @@ const SeoManagement = () => {
           </button>
         </div>
 
-        {/* Header with search and stats */}
+        {/* Header with search */}
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex-1">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -181,27 +204,12 @@ const SeoManagement = () => {
                   placeholder="Search pages, titles or descriptions..."
                   className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                 />
               </div>
             </div>
             <div className="text-gray-700 font-medium">
               {seoList.length} Pages
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <h3 className="text-sm font-medium text-blue-800">Optimized Pages</h3>
-              <p className="text-2xl font-bold text-blue-600 mt-1">{seoList.filter(seo => seo.title && seo.description).length}</p>
-            </div>
-            <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-              <h3 className="text-sm font-medium text-yellow-800">Needs Improvement</h3>
-              <p className="text-2xl font-bold text-yellow-600 mt-1">{seoList.filter(seo => !seo.title || !seo.description).length}</p>
-            </div>
-            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-              <h3 className="text-sm font-medium text-green-800">Complete SEO</h3>
-              <p className="text-2xl font-bold text-green-600 mt-1">{seoList.filter(seo => seo.title && seo.description && seo.keywords.length > 0).length}</p>
             </div>
           </div>
         </div>

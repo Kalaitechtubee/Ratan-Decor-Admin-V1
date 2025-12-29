@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Download, Filter, Search, Eye, Edit, Calendar, X, RefreshCw, Package, Truck } from 'lucide-react';
+import { Filter, Search, Eye, Edit, Calendar, X, RefreshCw, Package, Truck } from 'lucide-react';
 import Table from '../Common/Table';
 import StatusBadge from '../Common/StatusBadge';
 import Modal from '../Common/Modal';
+import ExportButton from '../Common/ExportButton';
 import OrderDetails from './OrderDetails';
 import OrderEdit from './OrderEdit';
 import adminOrderApi from './adminOrderApi';
@@ -143,38 +144,89 @@ const OrdersList = () => {
     setFilters(prev => ({ ...prev, page: newPage }));
   };
 
-  // Handle export to CSV
-  const handleExport = async () => {
+  // Check if any filters are active
+  const hasActiveFilters = !!(filters.status || filters.paymentStatus || filters.customer || filters.orderId || filters.startDate || filters.endDate);
+
+  // Export column configuration
+  const exportColumns = [
+    { key: 'orderId', header: 'Order ID' },
+    { key: 'orderDate', header: 'Order Date' },
+    { key: 'status', header: 'Status' },
+    { key: 'paymentStatus', header: 'Payment Status' },
+    { key: 'customer', header: 'Customer Name' },
+    { key: 'mobile', header: 'Mobile' },
+    { key: 'shippingAddress', header: 'Shipping Address' },
+    { key: 'productName', header: 'Product Name' },
+    { key: 'quantity', header: 'Quantity' },
+    { key: 'unitPrice', header: 'Purchasing Price' },
+    { key: 'itemTotal', header: 'Item Total' },
+    { key: 'orderTotal', header: 'Order Total' }
+  ];
+
+  const processOrdersForExport = (ordersToProcess) => {
+    const flattened = [];
+    ordersToProcess.forEach(order => {
+      const baseOrder = {
+        orderId: `ORD-${order.id.toString().padStart(3, '0')}`,
+        orderDate: new Date(order.orderDate).toLocaleDateString('en-IN'),
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+        customer: order.user?.name || 'Unknown',
+        mobile: order.deliveryAddress?.data?.phone || order.user?.mobile || '-',
+        shippingAddress: order.deliveryAddress?.data ?
+          `${order.deliveryAddress.data.address}, ${order.deliveryAddress.data.city}, ${order.deliveryAddress.data.state} - ${order.deliveryAddress.data.pincode}`
+          : (order.shippingAddress || '-'),
+        orderTotal: `₹${Number(order.total).toLocaleString('en-IN')}`
+      };
+
+      if (order.orderItems && order.orderItems.length > 0) {
+        order.orderItems.forEach(item => {
+          flattened.push({
+            ...baseOrder,
+            productName: item.product?.name || 'Unknown',
+            quantity: item.quantity,
+            unitPrice: `₹${Number(item.price).toLocaleString('en-IN')}`,
+            itemTotal: `₹${Number(item.total || (item.price * item.quantity)).toLocaleString('en-IN')}`
+          });
+        });
+      } else {
+        flattened.push({
+          ...baseOrder,
+          productName: '-',
+          quantity: '-',
+          unitPrice: '-',
+          itemTotal: '-'
+        });
+      }
+    });
+    return flattened;
+  };
+
+  // Handle export - returns formatted data for ExportButton component
+  const handleExport = async (format, exportType) => {
     setLoading(prev => ({ ...prev, export: true }));
-    setError(null);
     try {
-      const response = await adminOrderApi.getOrders({
-        status: filters.status,
-        paymentStatus: filters.paymentStatus,
-        page: 1,
-        limit: 1000, // Fetch more for export
-      });
-      const csvContent = [
-        ['Order ID', 'Customer', 'Items', 'Total', 'Status', 'Payment Status', 'Order Date'],
-        ...response.orders.map(order => [
-          `ORD-${order.id.toString().padStart(3, '0')}`,
-          order.user?.name || 'Unknown',
-          order.orderItems?.length || 0,
-          `₹${Number(order.total).toLocaleString('en-IN')}`,
-          order.status,
-          order.paymentStatus,
-          new Date(order.orderDate).toLocaleDateString('en-IN'),
-        ]),
-      ].map(row => row.join(',')).join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `orders-${new Date().toISOString().split('T')[0]}.csv`;
-      a.click();
-      window.URL.revokeObjectURL(url);
+      let dataToProcess = [];
+      if (exportType === 'all') {
+        const response = await adminOrderApi.getOrders({
+          status: filters.status,
+          paymentStatus: filters.paymentStatus,
+          customer: filters.customer,
+          orderId: filters.orderId,
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+          page: 1,
+          limit: 10000,
+        });
+        dataToProcess = response.orders || [];
+      } else {
+        // Current page
+        dataToProcess = orders;
+      }
+      return processOrdersForExport(dataToProcess);
     } catch (err) {
-      setError(err.message || 'Failed to export orders');
+      console.error('Export failed:', err);
+      return null;
     } finally {
       setLoading(prev => ({ ...prev, export: false }));
     }
@@ -295,15 +347,26 @@ const OrdersList = () => {
           <p className="text-gray-600">Manage and track all customer orders</p>
         </div>
         <div className="flex space-x-3">
-          {['Admin', 'Manager'].includes(userRole) && (
-            <button
-              onClick={handleExport}
-              className="flex items-center px-4 py-2 space-x-2 text-white rounded-lg transition-colors bg-primary hover:bg-red-600 disabled:bg-gray-400"
-              disabled={loading.export}
-            >
-              <Download size={16} />
-              <span>{loading.export ? 'Exporting...' : 'Export'}</span>
-            </button>
+          {['Admin', 'Manager', 'SuperAdmin'].includes(userRole) && (
+            <ExportButton
+              data={orders.map(order => ({
+                orderId: `ORD-${order.id.toString().padStart(3, '0')}`,
+                customer: order.user?.name || 'Unknown',
+                items: order.orderItems?.length || 0,
+                total: `₹${Number(order.total).toLocaleString('en-IN')}`,
+                status: order.status,
+                paymentStatus: order.paymentStatus,
+                orderDate: new Date(order.orderDate).toLocaleDateString('en-IN'),
+              }))}
+              columns={exportColumns}
+              filename="orders"
+              loading={loading.export}
+              hasFilters={hasActiveFilters}
+              onExport={handleExport}
+              totalRecords={pagination.total}
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+            />
           )}
         </div>
       </div>
@@ -332,7 +395,7 @@ const OrdersList = () => {
               <Package className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{pagination.total}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
               <p className="text-xs text-gray-500">Total Orders</p>
             </div>
           </div>

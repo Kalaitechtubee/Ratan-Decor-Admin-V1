@@ -36,7 +36,10 @@ import {
   Globe,
   Plus
 } from 'lucide-react';
+import ExportButton from '../Common/ExportButton';
+import DeleteConfirmationModal from '../Common/DeleteConfirmationModal';
 import {
+
   getAllUsers,
   getUserById,
   approveUser,
@@ -49,12 +52,10 @@ import {
 
 // Allowed role/status options shown in filters and edit forms
 const roleOptions = [
-  { value: 'customer', label: 'Customer' },
-  { value: 'architect', label: 'Architect' },
-  { value: 'dealer', label: 'Dealer' },
-  { value: 'Admin', label: 'Admin' },
-  { value: 'SuperAdmin', label: 'SuperAdmin' },
-  { value: 'staff', label: 'Staff' }
+  { value: 'customer', label: 'End Consumer' },
+  { value: 'architect', label: 'Architect / Interior Designer' },
+  { value: 'dealer', label: 'Dealer / Distributor' },
+
 ];
 
 const STAFF_ROLES = ['Admin', 'SuperAdmin', 'staff', 'Manager'];
@@ -72,6 +73,8 @@ const UsersList = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showPendingOnly, setShowPendingOnly] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [exportingOrders, setExportingOrders] = useState(false);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState({
@@ -132,7 +135,12 @@ const UsersList = () => {
     setPagination(prev => ({ ...prev, currentPage: page }));
   }, [searchParams]);
 
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
   const [isEditing, setIsEditing] = useState(false);
+
   const [editForm, setEditForm] = useState({
     name: '',
     email: '',
@@ -207,6 +215,7 @@ const UsersList = () => {
           ...(currentFilters.state ? { state: currentFilters.state } : {}),
           ...(currentFilters.city ? { city: currentFilters.city } : {}),
           ...(currentFilters.pincode ? { pincode: currentFilters.pincode } : {}),
+          includeOrderStats: true
         };
 
         const response = currentShowPendingOnly
@@ -446,27 +455,36 @@ const UsersList = () => {
     }
   };
 
-  const handleDeleteUser = async (userId) => {
-    const confirmed = window.confirm('Are you sure you want to delete this user? This action cannot be undone.');
-    if (!confirmed) return;
+  const handleDeleteUser = (userId) => {
+    const user = users.find(u => u.id === userId);
+    setUserToDelete(user);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+
     try {
-      setLoading(true);
-      const resp = await deleteUser(userId);
+      setDeleting(true);
+      const resp = await deleteUser(userToDelete.id);
       if (!resp.success) {
         throw new Error(resp.message || 'Failed to delete user');
       }
-      if (selectedUser?.id === userId) {
+      if (selectedUser?.id === userToDelete.id) {
         setSelectedUser(null);
       }
       debouncedLoadUsers();
       toast.success('User deleted successfully');
+      setShowDeleteModal(false);
     } catch (err) {
       console.error('Delete user error:', err);
       toast.error(err.message || 'Failed to delete user');
     } finally {
-      setLoading(false);
+      setDeleting(false);
+      setUserToDelete(null);
     }
   };
+
 
   const handleApproveUser = async (userId, status, reason = '') => {
     try {
@@ -546,23 +564,191 @@ const UsersList = () => {
           <p className="text-gray-600">View and manage all registered platform users</p>
         </div>
         <div className="flex space-x-3">
-          <button
-            className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
-          >
-            <Download className="mr-2" size={16} />
-            <span>Export</span>
-          </button>
+
+          <ExportButton
+            data={users.map(user => ({
+              name: user.name || '-',
+              email: user.email || '-',
+              phone: user.mobile || '-',
+              role: user.role || '-',
+              status: user.status || '-',
+              company: user.company || '-',
+              userType: user.userType?.name || user.userTypeName || '-',
+              city: user.city || '-',
+              state: user.state || '-',
+              pincode: user.pincode || '-',
+              country: user.country || '-',
+              registeredDate: new Date(user.createdAt).toLocaleDateString('en-IN'),
+              totalOrders: user.totalOrders || '0',
+              deliveredOrders: user.deliveredOrders || '0',
+              totalSpent: user.totalSpent ? formatCurrency(parseFloat(user.totalSpent)) : formatCurrency(0),
+            }))}
+            columns={[
+              { key: 'name', header: 'Name' },
+              { key: 'email', header: 'Email' },
+              { key: 'phone', header: 'Phone' },
+              { key: 'role', header: 'Role' },
+              { key: 'status', header: 'Status' },
+              { key: 'company', header: 'Company' },
+              { key: 'userType', header: 'User Type' },
+              { key: 'city', header: 'City' },
+              { key: 'state', header: 'State' },
+              { key: 'pincode', header: 'Pincode' },
+              { key: 'country', header: 'Country' },
+              { key: 'registeredDate', header: 'Registered Date' },
+              { key: 'totalOrders', header: 'Total Orders' },
+              { key: 'deliveredOrders', header: 'Delivered Orders' },
+              { key: 'totalSpent', header: 'Total Amount' },
+              { key: 'orderId', header: 'Order ID' },
+              { key: 'orderDate', header: 'Order Date' },
+              { key: 'orderStatus', header: 'Order Status' },
+              { key: 'orderTotal', header: 'Order Total' },
+              { key: 'productName', header: 'Product Name' },
+              { key: 'quantity', header: 'Quantity' },
+              { key: 'unitPrice', header: 'Purchasing Price' },
+              { key: 'itemTotal', header: 'Item Total' },
+            ]}
+            filename={showPendingOnly ? 'pending_users' : 'users'}
+            loading={exporting}
+            hasFilters={hasActiveFilters}
+            onExport={async (format, exportType) => {
+              setExporting(true);
+              try {
+                let usersToProcess = [];
+                const currentFilters = filtersRef.current;
+
+                const baseParams = {
+                  ...(currentFilters.role ? { role: currentFilters.role.toLowerCase() } : {}),
+                  ...(currentFilters.status ? { status: currentFilters.status } : {}),
+                  ...(currentFilters.search ? { search: currentFilters.search } : {}),
+                  ...(currentFilters.userTypeName ? { userTypeName: currentFilters.userTypeName } : {}),
+                  ...(currentFilters.startDate ? { startDate: currentFilters.startDate } : {}),
+                  ...(currentFilters.endDate ? { endDate: currentFilters.endDate } : {}),
+                  ...(currentFilters.state ? { state: currentFilters.state } : {}),
+                  ...(currentFilters.city ? { city: currentFilters.city } : {}),
+                  ...(currentFilters.pincode ? { pincode: currentFilters.pincode } : {}),
+                  includeOrderStats: true,
+                  includeOrders: 'true'
+                };
+
+                if (exportType === 'all') {
+                  let page = 1;
+                  let hasMore = true;
+                  while (hasMore) {
+                    const params = { ...baseParams, limit: 100, page };
+                    const response = showPendingOnly
+                      ? await getPendingUsers(params)
+                      : await getAllUsers(params);
+                    const data = response.users || response.data || [];
+                    usersToProcess = [...usersToProcess, ...data];
+                    const totalPages = response.pagination?.totalPages || 1;
+                    hasMore = page < totalPages;
+                    page++;
+                  }
+                } else if (exportType === 'current') {
+                  const params = {
+                    ...baseParams,
+                    limit: pagination.limit || 10,
+                    page: pagination.currentPage || 1
+                  };
+                  const response = showPendingOnly
+                    ? await getPendingUsers(params)
+                    : await getAllUsers(params);
+                  usersToProcess = response.users || response.data || [];
+                }
+
+                // Flatten data
+                const flattenedData = [];
+                usersToProcess.forEach(user => {
+                  const userInfo = {
+                    name: user.name || '-',
+                    email: user.email || '-',
+                    phone: user.mobile || '-',
+                    role: user.role || '-',
+                    status: user.status || '-',
+                    company: user.company || '-',
+                    userType: user.userType?.name || user.userTypeName || '-',
+                    city: user.city || '-',
+                    state: user.state || '-',
+                    pincode: user.pincode || '-',
+                    country: user.country || '-',
+                    registeredDate: new Date(user.createdAt).toLocaleDateString('en-IN'),
+                    totalOrders: user.totalOrders || '0',
+                    deliveredOrders: user.deliveredOrders || '0',
+                    totalSpent: user.totalSpent ? formatCurrency(parseFloat(user.totalSpent)) : formatCurrency(0),
+                  };
+
+                  if (user.orders && user.orders.length > 0) {
+                    user.orders.forEach(order => {
+                      const orderInfo = {
+                        orderId: order.id,
+                        orderDate: new Date(order.orderDate).toLocaleDateString('en-IN'),
+                        orderStatus: order.status,
+                        orderTotal: formatCurrency(order.total),
+                      };
+
+                      if (order.orderItems && order.orderItems.length > 0) {
+                        order.orderItems.forEach(item => {
+                          flattenedData.push({
+                            ...userInfo,
+                            ...orderInfo,
+                            productName: item.product?.name || 'Unknown',
+                            quantity: item.quantity,
+                            unitPrice: formatCurrency(item.price),
+                            itemTotal: formatCurrency(item.price * item.quantity),
+                          });
+                        });
+                      } else {
+                        flattenedData.push({
+                          ...userInfo,
+                          ...orderInfo,
+                          productName: '-',
+                          quantity: '-',
+                          unitPrice: '-',
+                          itemTotal: '-',
+                        });
+                      }
+                    });
+                  } else {
+                    flattenedData.push({
+                      ...userInfo,
+                      orderId: '-',
+                      orderDate: '-',
+                      orderStatus: '-',
+                      orderTotal: '-',
+                      productName: '-',
+                      quantity: '-',
+                      unitPrice: '-',
+                      itemTotal: '-',
+                    });
+                  }
+                });
+
+                return flattenedData;
+              } catch (err) {
+                console.error('Export failed:', err);
+                toast.error('Export failed. Please try again.');
+                return null;
+              } finally {
+                setExporting(false);
+              }
+            }}
+            totalRecords={pagination.totalItems}
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+          />
+
         </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {[
-          { label: 'Total Users', icon: Users, color: 'blue', value: summary.totalUsers || 0, status: '' },
+          { label: 'Total End Consumers', icon: Users, color: 'blue', value: summary.totalUsers || 0, status: '' },
           { label: 'Pending', icon: Clock, color: 'yellow', value: summary.statusBreakdown?.['Pending'] || 0, status: 'Pending' },
-          { label: 'Customers', icon: ShoppingBag, color: 'green', value: summary.roleBreakdown?.['customer'] || 0, role: 'customer' },
-          { label: 'Dealers', icon: Package, color: 'red', value: summary.roleBreakdown?.['Dealer'] || 0, role: 'Dealer' },
-          { label: 'Architects', icon: TrendingUp, color: 'purple', value: summary.roleBreakdown?.['Architect'] || 0, role: 'Architect' },
+          { label: 'End Consumer', icon: ShoppingBag, color: 'green', value: summary.roleBreakdown?.['customer'] || 0, role: 'customer' },
+          { label: 'Dealer / Distributor', icon: Package, color: 'red', value: summary.roleBreakdown?.['Dealer'] || 0, role: 'Dealer' },
+          { label: 'Architect / Interior Designer', icon: TrendingUp, color: 'purple', value: summary.roleBreakdown?.['Architect'] || 0, role: 'Architect' },
         ].map((stat) => {
           const Icon = stat.icon;
           const isActive = (stat.status && filters.status === stat.status) || (stat.role && filters.role === stat.role);
@@ -581,9 +767,17 @@ const UsersList = () => {
               key={stat.label}
               className={`p-4 bg-white rounded-lg shadow-sm border-2 cursor-pointer transition-all hover:shadow-md ${isActive ? `${c.border} ring-2 ${c.ring}` : 'border-transparent'}`}
               onClick={() => {
-                if (stat.status) handleFilterChange('status', stat.status);
-                else if (stat.role) handleFilterChange('role', stat.role);
-                else clearFilters();
+                if (stat.status) {
+                  // Clicking status card: set status, clear role
+                  setFilters(prev => ({ ...prev, status: stat.status, role: '' }));
+                  setPagination(prev => ({ ...prev, currentPage: 1 }));
+                } else if (stat.role) {
+                  // Clicking role card: set role, clear status
+                  setFilters(prev => ({ ...prev, role: stat.role, status: '' }));
+                  setPagination(prev => ({ ...prev, currentPage: 1 }));
+                } else {
+                  clearFilters();
+                }
               }}
             >
               <div className="flex items-center gap-3">
@@ -791,7 +985,7 @@ const UsersList = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${STAFF_ROLES.includes(user.role) ? 'bg-primary/10 text-primary' : 'bg-gray-100 text-gray-800'}`}>
-                        {user.role}
+                        {roleOptions.find(opt => opt.value.toLowerCase() === user.role?.toLowerCase())?.label || user.role}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -823,45 +1017,11 @@ const UsersList = () => {
             </table>
 
             {/* Pagination */}
-            {pagination.totalPages > 1 && (
-              <div className="bg-white px-6 py-4 flex items-center justify-between border-t border-gray-200">
-                <div className="text-sm text-gray-700">
-                  Showing <span className="font-medium">{(pagination.currentPage - 1) * pagination.limit + 1}</span> to <span className="font-medium">{Math.min(pagination.currentPage * pagination.limit, pagination.totalItems)}</span> of <span className="font-medium">{pagination.totalItems}</span> results
-                </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => handlePageChange(pagination.currentPage - 1)}
-                    disabled={pagination.currentPage === 1}
-                    className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Previous
-                  </button>
-                  {[...Array(pagination.totalPages)].map((_, i) => {
-                    const page = i + 1;
-                    if (page === 1 || page === pagination.totalPages || (page >= pagination.currentPage - 1 && page <= pagination.currentPage + 1)) {
-                      return (
-                        <button
-                          key={page}
-                          onClick={() => handlePageChange(page)}
-                          className={`px-3 py-1 border rounded-md text-sm font-medium ${page === pagination.currentPage ? 'bg-primary text-white border-primary' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
-                        >
-                          {page}
-                        </button>
-                      );
-                    }
-                    if (page === pagination.currentPage - 2 || page === pagination.currentPage + 2) return <span key={page}>...</span>;
-                    return null;
-                  })}
-                  <button
-                    onClick={() => handlePageChange(pagination.currentPage + 1)}
-                    disabled={pagination.currentPage === pagination.totalPages}
-                    className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
+            <Pagination
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              onPageChange={handlePageChange}
+            />
           </div>
         )}
       </div>
@@ -992,6 +1152,71 @@ const UsersList = () => {
                       </div>
                     </div>
                   )}
+
+                  <div className="flex justify-end mb-4">
+                    <ExportButton
+                      data={[]}
+                      columns={[
+                        { key: 'orderId', header: 'Order ID' },
+                        { key: 'date', header: 'Date' },
+                        { key: 'status', header: 'Status' },
+                        { key: 'totalAmount', header: 'Total Amount' },
+                        { key: 'productName', header: 'Product Name' },
+                        { key: 'quantity', header: 'Quantity' },
+                        { key: 'price', header: 'Price' },
+                        { key: 'itemTotal', header: 'Item Total' }
+                      ]}
+                      filename={`order_history_${selectedUser.name.replace(/\s+/g, '_').toLowerCase()}`}
+                      loading={exportingOrders}
+                      onExport={async () => {
+                        setExportingOrders(true);
+                        try {
+                          const response = await getUserOrderHistory(selectedUser.id, {
+                            limit: 1000
+                          });
+
+                          if (response.success && response.orders) {
+                            const exportData = [];
+                            response.orders.forEach(order => {
+                              if (order.orderItems && order.orderItems.length > 0) {
+                                order.orderItems.forEach(item => {
+                                  exportData.push({
+                                    orderId: order.id,
+                                    date: new Date(order.orderDate).toLocaleDateString(),
+                                    status: order.status,
+                                    totalAmount: formatCurrency(order.total),
+                                    productName: item.product?.name || 'Unknown Product',
+                                    quantity: item.quantity,
+                                    price: formatCurrency(item.price),
+                                    itemTotal: formatCurrency(item.price * item.quantity)
+                                  });
+                                });
+                              } else {
+                                exportData.push({
+                                  orderId: order.id,
+                                  date: new Date(order.orderDate).toLocaleDateString(),
+                                  status: order.status,
+                                  totalAmount: formatCurrency(order.total),
+                                  productName: '-',
+                                  quantity: '-',
+                                  price: '-',
+                                  itemTotal: '-'
+                                });
+                              }
+                            });
+                            return exportData;
+                          }
+                          return [];
+                        } catch (error) {
+                          console.error('Export failed:', error);
+                          toast.error('Failed to export order history');
+                          return [];
+                        } finally {
+                          setExportingOrders(false);
+                        }
+                      }}
+                    />
+                  </div>
                   <div className="space-y-3">
                     {orderHistory.loading ? <LoadingSpinner className="mx-auto" /> : orderHistory.orders.length === 0 ? <p className="text-center py-10 text-gray-400">No orders found for this user.</p> : (
                       orderHistory.orders.map(order => (
@@ -1121,8 +1346,19 @@ const UsersList = () => {
           </div>
         </div>
       )}
+
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={confirmDeleteUser}
+        title="Delete User"
+        message={`Are you sure you want to delete user ${userToDelete?.name}? This action cannot be undone.`}
+        loading={deleting}
+        itemDisplayName={userToDelete?.name}
+      />
     </div>
   );
 };
+
 
 export default UsersList;

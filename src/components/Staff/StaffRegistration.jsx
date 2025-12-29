@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  User, 
-  Mail, 
-  Lock, 
-  UserPlus, 
-  Shield, 
-  Key,
+import React, { useState } from 'react';
+import {
+  User,
+  Mail,
+  Lock,
+  UserPlus,
+  Shield,
   Eye,
   EyeOff,
   AlertCircle,
@@ -14,11 +13,9 @@ import {
 import { createStaffUser } from '../../services/Api'; // Assuming API service has createStaffUser
 
 const StaffRegistration = ({ currentUser, onToast }) => {
-  const [activeTab, setActiveTab] = useState('staff');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showSecretKey, setShowSecretKey] = useState(false);
-  
+
   const [staffForm, setStaffForm] = useState({
     name: '',
     email: '',
@@ -26,12 +23,7 @@ const StaffRegistration = ({ currentUser, onToast }) => {
     role: 'Sales'
   });
 
-  const [superAdminForm, setSuperAdminForm] = useState({
-    name: '',
-    email: '',
-    password: '',
-    secretKey: ''
-  });
+
 
   const [formErrors, setFormErrors] = useState({});
 
@@ -43,16 +35,8 @@ const StaffRegistration = ({ currentUser, onToast }) => {
     ...(currentUser?.role === 'SuperAdmin' ? [{ value: 'Admin', label: 'Admin', description: 'Full administrative access' }] : [])
   ];
 
-  const canCreateSuperAdmin = currentUser?.role === 'SuperAdmin';
 
-  useEffect(() => {
-    if (activeTab === 'staff') {
-      setStaffForm({ name: '', email: '', password: '', role: 'Sales' });
-    } else {
-      setSuperAdminForm({ name: '', email: '', password: '', secretKey: '' });
-    }
-    setFormErrors({});
-  }, [activeTab]);
+
 
   const validateForm = (form, isStaff = true) => {
     const errors = {};
@@ -96,7 +80,7 @@ const StaffRegistration = ({ currentUser, onToast }) => {
 
   const handleStaffSubmit = async (e) => {
     e.preventDefault();
-    
+
     const errors = validateForm(staffForm, true);
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
@@ -134,66 +118,18 @@ const StaffRegistration = ({ currentUser, onToast }) => {
     }
   };
 
-  const handleSuperAdminSubmit = async (e) => {
-    e.preventDefault();
-    
-    const errors = validateForm(superAdminForm, false);
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
 
-    setIsLoading(true);
-    setFormErrors({});
-
-    try {
-      // For SuperAdmin, use register API with role 'SuperAdmin' and createdBy
-      const response = await createStaffUser({ // Reuse or import register if separate
-        name: superAdminForm.name,
-        email: superAdminForm.email,
-        password: superAdminForm.password,
-        role: 'SuperAdmin',
-        createdBy: currentUser.id,
-        secretKey: superAdminForm.secretKey // If needed, pass as custom field
-      });
-
-      if (response.success) {
-        setSuperAdminForm({ name: '', email: '', password: '', secretKey: '' });
-        if (onToast) {
-          onToast('Super Admin created successfully', 'success');
-        }
-      } else {
-        if (onToast) {
-          onToast(response.message || 'Failed to create super admin', 'error');
-        }
-      }
-    } catch (error) {
-      console.error('Error creating super admin:', error);
-      if (onToast) {
-        onToast(error.message || 'Failed to create super admin', 'error');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleStaffInputChange = (e) => {
     const { name, value } = e.target;
     setStaffForm(prev => ({ ...prev, [name]: value }));
-    
+
     if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
 
-  const handleSuperAdminInputChange = (e) => {
-    const { name, value } = e.target;
-    setSuperAdminForm(prev => ({ ...prev, [name]: value }));
-    
-    if (formErrors[name]) {
-      setFormErrors(prev => ({ ...prev, [name]: '' }));
-    }
-  };
+
 
   return (
     <div className="min-h-screen bg-gray-50 py-6 px-4">
@@ -215,378 +151,166 @@ const StaffRegistration = ({ currentUser, onToast }) => {
           {/* Main Form Section */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-              {/* Tab Navigation */}
-              <div className="border-b border-gray-200 bg-gray-50">
-                <nav className="flex">
-                  <button
-                    onClick={() => setActiveTab('staff')}
-                    className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-all ${
-                      activeTab === 'staff'
-                        ? 'border-[#ff4747] text-[#ff4747] bg-white'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <div className="flex items-center justify-center">
-                      <Shield className="mr-2" size={18} />
-                      Create Staff User
-                    </div>
-                  </button>
-                  {canCreateSuperAdmin && (
-                    <button
-                      onClick={() => setActiveTab('superadmin')}
-                      className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-all ${
-                        activeTab === 'superadmin'
-                          ? 'border-[#ff4747] text-[#ff4747] bg-white'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      <div className="flex items-center justify-center">
-                        <Key className="mr-2" size={18} />
-                        Create Super Admin
-                      </div>
-                    </button>
-                  )}
-                </nav>
-              </div>
 
-              {/* Form Content */}
+
               <div className="p-8">
-                {activeTab === 'staff' && (
-                  <form onSubmit={handleStaffSubmit} className="space-y-6">
-                    <div className="bg-blue-50 border-l-4 border-blue-500 rounded-r-lg p-4">
-                      <div className="flex items-start">
-                        <AlertCircle className="text-blue-600 mr-3 mt-0.5 flex-shrink-0" size={20} />
-                        <div>
-                          <h3 className="text-sm font-semibold text-blue-800 mb-1">Staff User Creation</h3>
-                          <p className="text-sm text-blue-700">
-                            Staff users will be created with immediate access. Choose the appropriate role based on their responsibilities.
-                          </p>
-                        </div>
+                <form onSubmit={handleStaffSubmit} className="space-y-6">
+                  <div className="bg-blue-50 border-l-4 border-blue-500 rounded-r-lg p-4">
+                    <div className="flex items-start">
+                      <AlertCircle className="text-blue-600 mr-3 mt-0.5 flex-shrink-0" size={20} />
+                      <div>
+                        <h3 className="text-sm font-semibold text-blue-800 mb-1">Staff User Creation</h3>
+                        <p className="text-sm text-blue-700">
+                          Staff users will be created with immediate access. Choose the appropriate role based on their responsibilities.
+                        </p>
                       </div>
                     </div>
+                  </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Name Field */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Full Name <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                          <input
-                            type="text"
-                            name="name"
-                            value={staffForm.name}
-                            onChange={handleStaffInputChange}
-                            className={`w-full pl-11 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#ff4747] focus:border-transparent transition-all ${
-                              formErrors.name ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                            }`}
-                            placeholder="Enter full name"
-                            disabled={isLoading}
-                          />
-                        </div>
-                        {formErrors.name && (
-                          <p className="mt-1.5 text-xs text-red-600 flex items-center">
-                            <AlertCircle size={12} className="mr-1" />
-                            {formErrors.name}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Email Field */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Email Address <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                          <input
-                            type="email"
-                            name="email"
-                            value={staffForm.email}
-                            onChange={handleStaffInputChange}
-                            className={`w-full pl-11 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#ff4747] focus:border-transparent transition-all ${
-                              formErrors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                            }`}
-                            placeholder="Enter email address"
-                            disabled={isLoading}
-                          />
-                        </div>
-                        {formErrors.email && (
-                          <p className="mt-1.5 text-xs text-red-600 flex items-center">
-                            <AlertCircle size={12} className="mr-1" />
-                            {formErrors.email}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Password Field */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Name Field */}
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Password <span className="text-red-500">*</span>
+                        Full Name <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                         <input
-                          type={showPassword ? 'text' : 'password'}
-                          name="password"
-                          value={staffForm.password}
+                          type="text"
+                          name="name"
+                          value={staffForm.name}
                           onChange={handleStaffInputChange}
-                          className={`w-full pl-11 pr-12 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#ff4747] focus:border-transparent transition-all ${
-                            formErrors.password ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                          }`}
-                          placeholder="Enter password (min. 8 characters)"
+                          className={`w-full pl-11 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#ff4747] focus:border-transparent transition-all ${formErrors.name ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                            }`}
+                          placeholder="Enter full name"
                           disabled={isLoading}
                         />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                        >
-                          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                        </button>
                       </div>
-                      {formErrors.password && (
+                      {formErrors.name && (
                         <p className="mt-1.5 text-xs text-red-600 flex items-center">
                           <AlertCircle size={12} className="mr-1" />
-                          {formErrors.password}
+                          {formErrors.name}
                         </p>
                       )}
                     </div>
 
-                    {/* Role Selection */}
+                    {/* Email Field */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-3">
-                        Select Role <span className="text-red-500">*</span>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Email Address <span className="text-red-500">*</span>
                       </label>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {staffRoles.map((role) => (
-                          <label
-                            key={role.value}
-                            className={`flex items-start p-4 border-2 rounded-lg cursor-pointer transition-all hover:shadow-sm ${
-                              staffForm.role === role.value
-                                ? 'border-[#ff4747] bg-red-50 shadow-sm'
-                                : 'border-gray-200 hover:border-gray-300'
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                        <input
+                          type="email"
+                          name="email"
+                          value={staffForm.email}
+                          onChange={handleStaffInputChange}
+                          className={`w-full pl-11 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#ff4747] focus:border-transparent transition-all ${formErrors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'
                             }`}
-                          >
-                            <input
-                              type="radio"
-                              name="role"
-                              value={role.value}
-                              checked={staffForm.role === role.value}
-                              onChange={handleStaffInputChange}
-                              className="mt-1 text-[#ff4747] focus:ring-[#ff4747]"
-                              disabled={isLoading}
-                            />
-                            <div className="ml-3 flex-1">
-                              <div className="font-semibold text-gray-900">{role.label}</div>
-                              <div className="text-xs text-gray-600 mt-0.5">{role.description}</div>
-                            </div>
-                          </label>
-                        ))}
+                          placeholder="Enter email address"
+                          disabled={isLoading}
+                        />
                       </div>
-                      {formErrors.role && (
+                      {formErrors.email && (
                         <p className="mt-1.5 text-xs text-red-600 flex items-center">
                           <AlertCircle size={12} className="mr-1" />
-                          {formErrors.role}
+                          {formErrors.email}
                         </p>
                       )}
                     </div>
-
-                    {/* Submit Button */}
-                    <button
-                      type="submit"
-                      disabled={isLoading || staffRoles.length === 0}
-                      className="w-full bg-[#ff4747] text-white py-3 px-6 rounded-lg font-semibold hover:bg-[#dc2626] focus:ring-4 focus:ring-red-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-md hover:shadow-lg"
-                    >
-                      {isLoading ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                          Creating Staff User...
-                        </>
-                      ) : (
-                        <>
-                          <UserPlus className="mr-2" size={20} />
-                          Create Staff User
-                        </>
-                      )}
-                    </button>
-                  </form>
-                )}
-
-                {activeTab === 'superadmin' && canCreateSuperAdmin && (
-                  <form onSubmit={handleSuperAdminSubmit} className="space-y-6">
-                    <div className="bg-yellow-50 border-l-4 border-yellow-500 rounded-r-lg p-4">
-                      <div className="flex items-start">
-                        <AlertCircle className="text-yellow-600 mr-3 mt-0.5 flex-shrink-0" size={20} />
-                        <div>
-                          <h3 className="text-sm font-semibold text-yellow-800 mb-1">Super Admin Creation</h3>
-                          <p className="text-sm text-yellow-700">
-                            Super Admins have the highest level of access. This action requires a secret key and should be used with extreme caution.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Name Field */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Full Name <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                          <input
-                            type="text"
-                            name="name"
-                            value={superAdminForm.name}
-                            onChange={handleSuperAdminInputChange}
-                            className={`w-full pl-11 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#ff4747] focus:border-transparent transition-all ${
-                              formErrors.name ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                            }`}
-                            placeholder="Enter full name"
-                            disabled={isLoading}
-                          />
-                        </div>
-                        {formErrors.name && (
-                          <p className="mt-1.5 text-xs text-red-600 flex items-center">
-                            <AlertCircle size={12} className="mr-1" />
-                            {formErrors.name}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Email Field */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Email Address <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                          <input
-                            type="email"
-                            name="email"
-                            value={superAdminForm.email}
-                            onChange={handleSuperAdminInputChange}
-                            className={`w-full pl-11 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#ff4747] focus:border-transparent transition-all ${
-                              formErrors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                            }`}
-                            placeholder="Enter email address"
-                            disabled={isLoading}
-                          />
-                        </div>
-                        {formErrors.email && (
-                          <p className="mt-1.5 text-xs text-red-600 flex items-center">
-                            <AlertCircle size={12} className="mr-1" />
-                            {formErrors.email}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Password Field */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Password <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                          <input
-                            type={showPassword ? 'text' : 'password'}
-                            name="password"
-                            value={superAdminForm.password}
-                            onChange={handleSuperAdminInputChange}
-                            className={`w-full pl-11 pr-12 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#ff4747] focus:border-transparent transition-all ${
-                              formErrors.password ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                            }`}
-                            placeholder="Enter password"
-                            disabled={isLoading}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                          >
-                            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                          </button>
-                        </div>
-                        {formErrors.password && (
-                          <p className="mt-1.5 text-xs text-red-600 flex items-center">
-                            <AlertCircle size={12} className="mr-1" />
-                            {formErrors.password}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Secret Key Field */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Secret Key <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                          <input
-                            type={showSecretKey ? 'text' : 'password'}
-                            name="secretKey"
-                            value={superAdminForm.secretKey}
-                            onChange={handleSuperAdminInputChange}
-                            className={`w-full pl-11 pr-12 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#ff4747] focus:border-transparent transition-all ${
-                              formErrors.secretKey ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                            }`}
-                            placeholder="Enter secret key"
-                            disabled={isLoading}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowSecretKey(!showSecretKey)}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                          >
-                            {showSecretKey ? <EyeOff size={20} /> : <Eye size={20} />}
-                          </button>
-                        </div>
-                        {formErrors.secretKey && (
-                          <p className="mt-1.5 text-xs text-red-600 flex items-center">
-                            <AlertCircle size={12} className="mr-1" />
-                            {formErrors.secretKey}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Submit Button */}
-                    <button
-                      type="submit"
-                      disabled={isLoading}
-                      className="w-full bg-[#ff4747] text-white py-3 px-6 rounded-lg font-semibold hover:bg-[#dc2626] focus:ring-4 focus:ring-red-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-md hover:shadow-lg"
-                    >
-                      {isLoading ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                          Creating Super Admin...
-                        </>
-                      ) : (
-                        <>
-                          <Key className="mr-2" size={20} />
-                          Create Super Admin
-                        </>
-                      )}
-                    </button>
-                  </form>
-                )}
-
-                {activeTab === 'superadmin' && !canCreateSuperAdmin && (
-                  <div className="text-center py-16">
-                    <div className="bg-gray-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Shield className="text-gray-400" size={40} />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Access Restricted</h3>
-                    <p className="text-gray-600 max-w-sm mx-auto">
-                      Only Super Admins can create new Super Admin accounts.
-                    </p>
                   </div>
-                )}
+
+                  {/* Password Field */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Password <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        name="password"
+                        value={staffForm.password}
+                        onChange={handleStaffInputChange}
+                        className={`w-full pl-11 pr-12 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#ff4747] focus:border-transparent transition-all ${formErrors.password ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                          }`}
+                        placeholder="Enter password (min. 8 characters)"
+                        disabled={isLoading}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
+                    {formErrors.password && (
+                      <p className="mt-1.5 text-xs text-red-600 flex items-center">
+                        <AlertCircle size={12} className="mr-1" />
+                        {formErrors.password}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Role Selection */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Select Role <span className="text-red-500">*</span>
+                    </label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {staffRoles.map((role) => (
+                        <label
+                          key={role.value}
+                          className={`flex items-start p-4 border-2 rounded-lg cursor-pointer transition-all hover:shadow-sm ${staffForm.role === role.value
+                            ? 'border-[#ff4747] bg-red-50 shadow-sm'
+                            : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                        >
+                          <input
+                            type="radio"
+                            name="role"
+                            value={role.value}
+                            checked={staffForm.role === role.value}
+                            onChange={handleStaffInputChange}
+                            className="mt-1 text-[#ff4747] focus:ring-[#ff4747]"
+                            disabled={isLoading}
+                          />
+                          <div className="ml-3 flex-1">
+                            <div className="font-semibold text-gray-900">{role.label}</div>
+                            <div className="text-xs text-gray-600 mt-0.5">{role.description}</div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                    {formErrors.role && (
+                      <p className="mt-1.5 text-xs text-red-600 flex items-center">
+                        <AlertCircle size={12} className="mr-1" />
+                        {formErrors.role}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={isLoading || staffRoles.length === 0}
+                    className="w-full bg-[#ff4747] text-white py-3 px-6 rounded-lg font-semibold hover:bg-[#dc2626] focus:ring-4 focus:ring-red-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-md hover:shadow-lg"
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                        Creating Staff User...
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="mr-2" size={20} />
+                        Create Staff User
+                      </>
+                    )}
+                  </button>
+                </form>
               </div>
             </div>
           </div>
@@ -616,7 +340,7 @@ const StaffRegistration = ({ currentUser, onToast }) => {
             <div className="bg-white rounded-lg shadow-sm p-6">
               <div className="flex items-center mb-4 pb-3 border-b border-gray-200">
                 <div className="bg-[#ffe5e5] p-2 rounded-lg mr-3">
-                  <Key className="text-[#ff4747]" size={24} />
+                  <Shield className="text-[#ff4747]" size={24} />
                 </div>
                 <h3 className="text-lg font-bold text-gray-900">Access Levels</h3>
               </div>
