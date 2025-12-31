@@ -454,8 +454,8 @@ const ProductsList = () => {
     setCounts(prev => ({
       ...prev,
       totalCount: prev.totalCount - 1,
-      activeCount: deletedProduct?.isActive ? prev.activeCount - 1 : prev.activeCount,
-      inactiveCount: !deletedProduct?.isActive ? prev.inactiveCount - 1 : prev.inactiveCount,
+      activeCount: productToDelete?.isActive ? prev.activeCount - 1 : prev.activeCount,
+      inactiveCount: !productToDelete?.isActive ? prev.inactiveCount - 1 : prev.inactiveCount,
     }));
 
     try {

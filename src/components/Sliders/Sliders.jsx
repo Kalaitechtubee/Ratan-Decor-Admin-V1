@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Upload, X, Image as ImageIcon, Link } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { apiFetchWithAuth as apiFetch } from '../../services/Api';
+import DeleteConfirmationModal from '../Common/DeleteConfirmationModal';
 
 const BASE_API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -425,9 +426,8 @@ const Sliders = ({ currentUser, onToast }) => {
                   Image
                 </label>
                 <div
-                  className={`p-6 rounded-lg border-2 border-dashed ${
-                    isDragOver ? 'border-[#ff4747] bg-red-50' : 'border-gray-300'
-                  }`}
+                  className={`p-6 rounded-lg border-2 border-dashed ${isDragOver ? 'border-[#ff4747] bg-red-50' : 'border-gray-300'
+                    }`}
                   onDragOver={(e) => {
                     e.preventDefault();
                     setIsDragOver(true);
@@ -533,48 +533,15 @@ const Sliders = ({ currentUser, onToast }) => {
       )}
 
       {/* Delete Confirmation Modal */}
-      {isDeleteModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
-            <div className="p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-[#ff4747]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">Delete Slider</h3>
-                  <p className="text-sm text-gray-500">This action cannot be undone</p>
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <p className="text-gray-700">
-                  Are you sure you want to delete the slider <strong className="text-gray-900">"{deleteTarget?.title}"</strong>?
-                </p>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={handleDeleteConfirm}
-                  disabled={loading}
-                  className="flex-1 px-6 py-3 bg-[#ff4747] text-white rounded-lg font-semibold hover:bg-[#dc2626] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? 'Deleting...' : 'Delete'}
-                </button>
-                <button
-                  onClick={() => setIsDeleteModalOpen(false)}
-                  disabled={loading}
-                  className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Slider"
+        message={`Are you sure you want to delete the slider "${deleteTarget?.title}"? This action cannot be undone.`}
+        loading={loading}
+        itemDisplayName={deleteTarget?.title}
+      />
     </div>
   );
 };

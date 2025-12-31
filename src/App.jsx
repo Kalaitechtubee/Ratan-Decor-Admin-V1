@@ -1,11 +1,11 @@
-// src/App.jsx - Updated with correct requiredAccess for Video Call route
+// src/App.jsx
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { ToastContainer, toast } from 'react-toastify';
 import Layout from './components/Layout/Layout';
 import Login from './components/Login/Login';
-import VideoCallAppointmentsList from './components/VideoCallAppointmentsList/VideoCallAppointmentsList';
+import ContactsList from './components/Contact/ContactsList';
 import ProtectedRoute from './components/Common/ProtectedRoute';
 import { protectedRoutes, defaultRoute, getCurrentPageFromPath, getNotFoundComponent } from './routes';
 import { login, logout, isAuthenticated, getCurrentUser, clearAuth, setAuthData } from './services/Api';
@@ -16,7 +16,6 @@ const validateUserData = (user) => {
   return user && user.id && user.email && user.role;
 };
 
-// Enhanced AppContent with Video Call routes
 const AppContent = ({ isAuthenticated, currentUser, onLogout }) => {
   const location = useLocation();
   const currentPage = getCurrentPageFromPath(location.pathname);
@@ -43,7 +42,7 @@ const AppContent = ({ isAuthenticated, currentUser, onLogout }) => {
       className="font-roboto text-primary"
     >
       <Routes>
-        {/* Existing protected routes */}
+        {/* All protected routes handled via map */}
         {protectedRoutes.map((route) => (
           <Route
             key={route.path}
@@ -58,24 +57,6 @@ const AppContent = ({ isAuthenticated, currentUser, onLogout }) => {
             }
           />
         ))}
-
-        {/* Video Call Enquiry Routes */}
-        <Route
-          path="/video-call-appointments"
-          element={
-            <ProtectedRoute 
-              route={{
-                path: '/video-call-appointments',
-                isPublic: false,
-                requiredAccess: 'requireEnquiriesAccess'
-              }}
-              isLoading={false}
-            >
-              <VideoCallAppointmentsList currentUser={currentUser} />
-            </ProtectedRoute>
-          }
-        />
-
         {/* Default and 404 routes */}
         <Route path="/" element={<Navigate to={defaultRoute} replace />} />
         <Route path="*" element={getNotFoundComponent()} />
@@ -95,7 +76,7 @@ function App() {
         // Tokens are now in secure httpOnly cookies - check for user data instead
         const { getUser } = await import('./utils/tokenHandler');
         let userData = getUser();
-        
+       
         // If no user in localStorage, try to get from API (cookies will be sent automatically)
         if (!userData) {
           try {
@@ -118,7 +99,6 @@ function App() {
             }
           }
         }
-
         // Validate user data
         if (userData && validateUserData(userData)) {
           setIsAuthenticated(true);
@@ -140,7 +120,6 @@ function App() {
         setIsLoading(false);
       }
     };
-
     checkAuthStatus();
   }, []);
 
@@ -203,7 +182,7 @@ function App() {
             pauseOnHover
             theme="light"
           />
-          
+         
           <Routes>
             <Route
               path="/login"
@@ -211,7 +190,7 @@ function App() {
                 isAuthenticated ? (
                   <Navigate to={defaultRoute} replace />
                 ) : (
-                  <Login 
+                  <Login
                     onLogin={handleLogin}
                     isLoading={isLoading}
                   />
@@ -219,9 +198,13 @@ function App() {
               }
             />
             <Route
+              path="/contact"
+              element={<ContactsList />}
+            />
+            <Route
               path="/*"
               element={
-                <ProtectedRoute 
+                <ProtectedRoute
                   route={{ isPublic: false }}
                   isLoading={isLoading}
                 >

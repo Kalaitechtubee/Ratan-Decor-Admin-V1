@@ -1,3 +1,4 @@
+// src/utils/roleAccess.js
 /**
  * ============================================================
  * ROLE-BASED ACCESS CONTROL (Frontend)
@@ -11,12 +12,9 @@
  */
 export const hasRoleAccess = (user, allowedRoles) => {
   if (!user || !user.role) return false;
-
   const userRole = user.role;
-
   // SuperAdmin overrides all
   if (userRole === "SuperAdmin") return true;
-
   return allowedRoles.includes(userRole);
 };
 
@@ -36,7 +34,6 @@ export const moduleAccess = {
   requireSlidersAccess: (user) => hasRoleAccess(user, ["SuperAdmin", "Admin", "Support"]),
   requireSeoAccess: (user) => hasRoleAccess(user, ["SuperAdmin", "Admin", "Support"]),
   requireContactsAccess: (user) => hasRoleAccess(user, ["SuperAdmin", "Admin", "Support", "Sales"]),
-
   // Legacy/Adjusted (removed Manager)
   requireAdmin: (user) => hasRoleAccess(user, ["SuperAdmin", "Admin"]),
   requireManagerOrAdmin: (user) => hasRoleAccess(user, ["SuperAdmin", "Admin"]),
@@ -61,7 +58,6 @@ export const getRoleLevel = (role) => {
     General: 30,
     customer: 20,
   };
-
   return roleHierarchy[role] || 0;
 };
 
@@ -74,29 +70,23 @@ export const canPerformAction = (
   action = "view"
 ) => {
   if (!currentUser || !currentUser.role) return false;
-
   const currentRole = currentUser.role;
   const currentLevel = getRoleLevel(currentRole);
-
   // SuperAdmin → full access
   if (currentRole === "SuperAdmin") return true;
-
   // Users can edit/view their own data
   if (currentUser.id === targetUser?.id) {
     return action === "view" || action === "edit";
   }
-
   // Check level-based access
   if (targetUser && targetUser.role) {
     const targetLevel = getRoleLevel(targetUser.role);
     if (currentLevel <= targetLevel) return false;
   }
-
   // Admin → can act on all except SuperAdmin
   if (currentRole === "Admin" && targetUser?.role !== "SuperAdmin") {
     return true;
   }
-
   // Sales/Support → view only
   if (["Sales", "Support"].includes(currentRole)) {
     return (
@@ -106,7 +96,6 @@ export const canPerformAction = (
       )
     );
   }
-
   return false;
 };
 
@@ -115,7 +104,6 @@ export const canPerformAction = (
  */
 export const getAllowedActions = (user) => {
   if (!user || !user.role) return [];
-
   const actions = {
     SuperAdmin: ["view", "create", "edit", "delete", "manage"],
     Admin: ["view", "create", "edit", "delete", "manage"],
@@ -126,7 +114,6 @@ export const getAllowedActions = (user) => {
     General: ["view"],
     customer: ["view"],
   };
-
   return actions[user.role] || [];
 };
 
@@ -135,13 +122,10 @@ export const getAllowedActions = (user) => {
  */
 export const canAccessRoute = (user, route) => {
   if (!user || !route) return false;
-
   if (route.isPublic) return true;
-
   if (!route.requiredRole && !route.requiredAccess) {
     return moduleAccess.requireAuth(user);
   }
-
   if (route.requiredRole) {
     return hasRoleAccess(
       user,
@@ -150,11 +134,9 @@ export const canAccessRoute = (user, route) => {
         : [route.requiredRole]
     );
   }
-
   if (route.requiredAccess && moduleAccess[route.requiredAccess]) {
     return moduleAccess[route.requiredAccess](user);
   }
-
   return false;
 };
 

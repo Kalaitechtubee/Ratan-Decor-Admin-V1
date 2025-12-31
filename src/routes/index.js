@@ -1,3 +1,4 @@
+// src/routes.js
 import Dashboard from '../components/Dashboard/Dashboard';
 import EnquiriesList from '../components/Enquiries/EnquiriesList';
 import UsersList from '../components/Users/UsersList'; // Keep file path same
@@ -11,16 +12,16 @@ import VideoCallAppointmentsList from '../components/VideoCallAppointmentsList/V
 import StaffRegistration from '../components/Staff/StaffRegistration';
 import StaffList from '../components/Staff/StaffList';
 import ContactsList from '../components/Contact/ContactsList';
-
 import Sliders from '../components/Sliders/Sliders';
 import Profile from '../components/Profile/Profile';
 import CatalogSettings from '../components/Catalog/CatalogSettings';
+import Login from '../components/Login/Login';
 
 // Public routes
 export const publicRoutes = [
   {
     path: '/login',
-    element: 'Login',
+    element: Login,
     title: 'Login',
     isPublic: true,
   },
