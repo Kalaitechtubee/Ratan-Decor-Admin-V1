@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { getAllUsers, getAllEnquiries, getCategories } from '../../services/Api';
 import adminOrderApi from '../Orders/adminOrderApi';
 import appointmentApi from '../VideoCallAppointmentsList/appointmentApi';
+import { getUser } from '../../utils/tokenHandler';
+import { moduleAccess } from '../../utils/roleAccess';
 import { Users, MessageSquare, ShoppingCart, Activity, Briefcase, UserCheck, Video, Package } from 'lucide-react';
 
 const Dashboard = () => {
@@ -29,13 +31,21 @@ const Dashboard = () => {
         setLoading(true);
 
         // Parallel data fetching
-        const [usersRes, enquiriesRes, ordersRes, appointmentsRes, categoriesRes] = await Promise.all([
-          getAllUsers({ includeStaff: 'true', limit: 1 }),
-          getAllEnquiries({ limit: 1 }),
-          adminOrderApi.getOrders({ limit: 1 }),
-          appointmentApi.getAllAppointments({ limit: 1 }),
-          getCategories({ includeSubcategories: true, limit: 100 })
+        const user = getUser();
+
+        const results = await Promise.allSettled([
+          moduleAccess.requireCustomersAccess(user) ? getAllUsers({ includeStaff: 'true', limit: 1 }) : Promise.reject('No access'),
+          moduleAccess.requireEnquiriesAccess(user) ? getAllEnquiries({ limit: 1 }) : Promise.reject('No access'),
+          moduleAccess.requireOrdersAccess(user) ? adminOrderApi.getOrders({ limit: 1 }) : Promise.reject('No access'),
+          moduleAccess.requireEnquiriesAccess(user) ? appointmentApi.getAllAppointments({ limit: 1 }) : Promise.reject('No access'),
+          moduleAccess.requireCategoriesAccess(user) ? getCategories({ includeSubcategories: true, limit: 100 }) : Promise.reject('No access')
         ]);
+
+        const usersRes = results[0].status === 'fulfilled' ? results[0].value : { success: false };
+        const enquiriesRes = results[1].status === 'fulfilled' ? results[1].value : { success: false };
+        const ordersRes = results[2].status === 'fulfilled' ? results[2].value : { success: false };
+        const appointmentsRes = results[3].status === 'fulfilled' ? results[3].value : { success: false };
+        const categoriesRes = results[4].status === 'fulfilled' ? results[4].value : { success: false };
 
         // Calculate stats
         const totalUsers = usersRes.pagination?.totalItems || 0;

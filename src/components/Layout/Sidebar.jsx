@@ -1,3 +1,4 @@
+// src/components/Layout/Sidebar.jsx
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -19,6 +20,7 @@ import {
   Briefcase,
   Mail,
   FileText,
+  Image,
 } from 'lucide-react';
 import { navigationItems, protectedRoutes } from '../../routes';
 import { canAccessRoute } from '../../utils/roleAccess';
@@ -38,6 +40,8 @@ const iconMap = {
   'staff-management': <Users size={20} />,
   'staff-list': <Users size={20} />,
   contacts: <Mail size={20} />,
+  sliders: <Image size={20} />,
+  'catalog-settings': <FileText size={20} />,
 };
 
 const Sidebar = ({ currentPage, userRole, isCollapsed, onToggleCollapse, onLogout, currentUser }) => {
@@ -122,7 +126,6 @@ const Sidebar = ({ currentPage, userRole, isCollapsed, onToggleCollapse, onLogou
           </button>
         </div>
       </div>
-
       {/* User Info */}
       {!isCollapsed && currentUser && (
         <div className="p-4 border-b border-gray-200 flex-shrink-0">
@@ -139,7 +142,6 @@ const Sidebar = ({ currentPage, userRole, isCollapsed, onToggleCollapse, onLogou
           </div>
         </div>
       )}
-
       {/* Navigation - Scrollable section */}
       <nav className="flex-1 overflow-y-auto px-2 py-2">
         <ul className="space-y-1">
@@ -211,11 +213,9 @@ const Sidebar = ({ currentPage, userRole, isCollapsed, onToggleCollapse, onLogou
           ))}
         </ul>
       </nav>
-
       {/* Footer - Fixed at bottom */}
       <div className="p-2 border-t border-gray-200 flex-shrink-0">
         <div className="space-y-1">
-
           <button
             onClick={handleLogout}
             className={`w-full flex items-center px-3 py-2 rounded-lg text-primary hover:bg-red-50 transition-colors ${isCollapsed ? 'justify-center' : ''}`}
@@ -226,7 +226,6 @@ const Sidebar = ({ currentPage, userRole, isCollapsed, onToggleCollapse, onLogou
           </button>
         </div>
       </div>
-
       {/* Custom Scrollbar Styling (optional, for better UX on desktop) */}
       <style>{`
         nav::-webkit-scrollbar {

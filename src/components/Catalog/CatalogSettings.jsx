@@ -9,12 +9,17 @@ import {
   FaFileAlt
 } from 'react-icons/fa';
 import dayjs from 'dayjs';
+import DeleteConfirmationModal from '../Common/DeleteConfirmationModal';
 
 const CatalogSettings = ({ currentUser, onToast }) => {
   const [catalog, setCatalog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
+
+  // Delete Modal State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     fetchCatalog();
@@ -65,16 +70,23 @@ const CatalogSettings = ({ currentUser, onToast }) => {
     }
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm('Delete current catalog file?')) return;
+  const handleDelete = () => {
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
     try {
+      setDeleteLoading(true);
       const response = await deleteCatalog();
       if (response?.success) {
         onToast('Catalog deleted successfully', 'success');
         setCatalog(null);
+        setIsDeleteModalOpen(false);
       }
     } catch (err) {
       onToast(err.message || 'Delete failed', 'error');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -190,6 +202,17 @@ const CatalogSettings = ({ currentUser, onToast }) => {
 
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete Catalog File"
+        message="Are you sure you want to delete the current catalog file? This will remove the download link from the website."
+        loading={deleteLoading}
+        itemDisplayName={catalog?.originalName}
+      />
     </div>
   );
 };

@@ -21,9 +21,10 @@ import {
   Clock
 } from 'lucide-react';
 import { useNavigate } from "react-router-dom";
-import { getAllStaffUsers, getStaffUserById } from '../../services/Api';
+import { getAllStaffUsers, getStaffUserById, deleteUser } from '../../services/Api';
 
 import ExportButton from '../Common/ExportButton';
+import DeleteConfirmationModal from '../Common/DeleteConfirmationModal';
 
 const StaffList = ({ currentUser, onToast }) => {
   const navigate = useNavigate();
@@ -38,6 +39,12 @@ const StaffList = ({ currentUser, onToast }) => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+
+  // Delete Modal State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   const [summary, setSummary] = useState({
     totalUsers: 0,
     statusBreakdown: {},
@@ -106,7 +113,6 @@ const StaffList = ({ currentUser, onToast }) => {
   };
 
 
-
   const handleViewUser = async (userId) => {
     try {
       const response = await getStaffUserById(userId);
@@ -124,6 +130,35 @@ const StaffList = ({ currentUser, onToast }) => {
       if (onToast) {
         onToast(error.message || 'Failed to fetch user details', 'error');
       }
+    }
+  };
+
+  const handleDeleteClick = (user) => {
+    setUserToDelete(user);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+
+    try {
+      setDeleteLoading(true);
+      const response = await deleteUser(userToDelete.id);
+
+      if (response.success) {
+        if (onToast) onToast('Staff user deleted successfully', 'success');
+        setShowDeleteModal(false);
+        setUserToDelete(null);
+        // Refresh the list
+        fetchStaffUsers();
+      } else {
+        if (onToast) onToast(response.message || 'Failed to delete staff user', 'error');
+      }
+    } catch (error) {
+      console.error('Error deleting staff user:', error);
+      if (onToast) onToast(error.message || 'Failed to delete staff user', 'error');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -435,10 +470,17 @@ const StaffList = ({ currentUser, onToast }) => {
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <button
                             onClick={() => handleViewUser(user.id)}
-                            className="text-primary hover:text-primary-700 p-1 rounded transition-colors"
+                            className="text-primary hover:text-primary-700 p-1 rounded transition-colors mr-2"
                             title="View Details"
                           >
                             <Eye size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClick(user)}
+                            className="text-red-500 hover:text-red-700 p-1 rounded transition-colors"
+                            title="Delete Staff"
+                          >
+                            <Trash2 size={16} />
                           </button>
                         </td>
                       </tr>
@@ -601,6 +643,17 @@ const StaffList = ({ currentUser, onToast }) => {
             </div>
           </div>
         )}
+
+        {/* Delete Confirmation Modal */}
+        <DeleteConfirmationModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={handleConfirmDelete}
+          title="Delete Staff User"
+          message="Are you sure you want to delete this staff member? This action cannot be undone and they will lose access to the admin panel."
+          loading={deleteLoading}
+          itemDisplayName={userToDelete?.name}
+        />
       </div>
     </div>
   );
