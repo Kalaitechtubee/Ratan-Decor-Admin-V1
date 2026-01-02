@@ -90,7 +90,6 @@ const UsersList = () => {
     role: searchParams.get('role') || '',
     status: searchParams.get('status') || '',
     search: searchParams.get('search') || '',
-    userTypeName: searchParams.get('userTypeName') || '',
     startDate: searchParams.get('startDate') || '',
     endDate: searchParams.get('endDate') || '',
     state: searchParams.get('state') || '',
@@ -98,8 +97,6 @@ const UsersList = () => {
     pincode: searchParams.get('pincode') || '',
   });
 
-  const [userTypes, setUserTypes] = useState([]);
-  const hasFetchedUserTypesRef = useRef(false);
   const [summary, setSummary] = useState({
     totalUsers: 0,
     statusBreakdown: {},
@@ -124,7 +121,6 @@ const UsersList = () => {
       search,
       role: searchParams.get('role') || '',
       status: searchParams.get('status') || '',
-      userTypeName: searchParams.get('userTypeName') || '',
       startDate: searchParams.get('startDate') || '',
       endDate: searchParams.get('endDate') || '',
       state: searchParams.get('state') || '',
@@ -147,7 +143,6 @@ const UsersList = () => {
     role: '',
     status: '',
     company: '',
-    userTypeId: ''
   });
 
   // Order history state
@@ -209,7 +204,6 @@ const UsersList = () => {
           ...(currentFilters.role ? { role: currentFilters.role.toLowerCase() } : {}),
           ...(currentFilters.status ? { status: currentFilters.status } : {}),
           ...(currentFilters.search ? { search: currentFilters.search } : {}),
-          ...(currentFilters.userTypeName ? { userTypeName: currentFilters.userTypeName } : {}),
           ...(currentFilters.startDate ? { startDate: currentFilters.startDate } : {}),
           ...(currentFilters.endDate ? { endDate: currentFilters.endDate } : {}),
           ...(currentFilters.state ? { state: currentFilters.state } : {}),
@@ -282,7 +276,6 @@ const UsersList = () => {
       role: '',
       status: '',
       search: '',
-      userTypeName: '',
       startDate: '',
       endDate: '',
       state: '',
@@ -335,21 +328,6 @@ const UsersList = () => {
     }
   }, [orderFilters]);
 
-  useEffect(() => {
-    if (!hasFetchedUserTypesRef.current) {
-      hasFetchedUserTypesRef.current = true;
-      const fetchUserTypes = async () => {
-        try {
-          const response = await getUserTypes();
-          const types = response.userTypes || response.data || [];
-          setUserTypes(types);
-        } catch (error) {
-          console.error('Error fetching user types:', error);
-        }
-      };
-      fetchUserTypes();
-    }
-  }, []);
 
   useEffect(() => {
     if (!hasFetchedRef.current) {
@@ -423,7 +401,6 @@ const UsersList = () => {
         role: u.role || '',
         status: u.status || '',
         company: u.company || '',
-        userTypeId: u.userTypeId || ''
       });
       setIsEditing(true);
     } catch (err) {
@@ -573,7 +550,6 @@ const UsersList = () => {
               role: user.role || '-',
               status: user.status || '-',
               company: user.company || '-',
-              userType: user.userType?.name || user.userTypeName || '-',
               city: user.city || '-',
               state: user.state || '-',
               pincode: user.pincode || '-',
@@ -590,7 +566,6 @@ const UsersList = () => {
               { key: 'role', header: 'Role' },
               { key: 'status', header: 'Status' },
               { key: 'company', header: 'Company' },
-              { key: 'userType', header: 'User Type' },
               { key: 'city', header: 'City' },
               { key: 'state', header: 'State' },
               { key: 'pincode', header: 'Pincode' },
@@ -621,7 +596,6 @@ const UsersList = () => {
                   ...(currentFilters.role ? { role: currentFilters.role.toLowerCase() } : {}),
                   ...(currentFilters.status ? { status: currentFilters.status } : {}),
                   ...(currentFilters.search ? { search: currentFilters.search } : {}),
-                  ...(currentFilters.userTypeName ? { userTypeName: currentFilters.userTypeName } : {}),
                   ...(currentFilters.startDate ? { startDate: currentFilters.startDate } : {}),
                   ...(currentFilters.endDate ? { endDate: currentFilters.endDate } : {}),
                   ...(currentFilters.state ? { state: currentFilters.state } : {}),
@@ -862,16 +836,6 @@ const UsersList = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-              <select
-                className="px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary transition-all bg-white"
-                value={filters.userTypeName}
-                onChange={(e) => handleFilterChange('userTypeName', e.target.value)}
-              >
-                <option value="">All User Types</option>
-                {userTypes.map(type => (
-                  <option key={type.id} value={type.name}>{type.name}</option>
-                ))}
-              </select>
               <input
                 type="text"
                 placeholder="State"
@@ -964,7 +928,6 @@ const UsersList = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User Type</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registered</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -996,11 +959,7 @@ const UsersList = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {user.company || '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-700">
-                        {user.userType?.name || '-'}
-                      </span>
-                    </td>
+
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(user.createdAt)}
                     </td>
@@ -1008,7 +967,6 @@ const UsersList = () => {
                       <div className="flex justify-end space-x-2">
                         <button onClick={() => handleViewUserDetails(user)} className="text-blue-600 hover:text-blue-900"><Eye size={18} /></button>
                         <button onClick={() => handleEditUser(user)} className="text-gray-600 hover:text-gray-900"><Pencil size={18} /></button>
-                        <button onClick={() => handleDeleteUser(user.id)} className="text-red-600 hover:text-red-900"><Trash2 size={18} /></button>
                       </div>
                     </td>
                   </tr>
@@ -1109,6 +1067,9 @@ const UsersList = () => {
                   <div className="p-4 bg-gray-50 rounded-lg">
                     <h3 className="mb-3 text-lg font-medium text-gray-900">Location Details</h3>
                     <div className="space-y-2 text-sm">
+                      <p>
+                        <span className="font-medium">Address:</span> {selectedUser.address || '-'}
+                      </p>
                       <p>
                         <span className="font-medium">City:</span> {selectedUser.city || '-'}
                       </p>
@@ -1271,60 +1232,15 @@ const UsersList = () => {
 
             <div className="space-y-5">
               <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Full Name</label>
-                <input
-                  type="text"
-                  value={editForm.name}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium text-neutral-900"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-neutral-600 mb-1.5">Role</label>
-                  <select
-                    value={editForm.role}
-                    onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
-                    className="w-full px-4 py-3 bg-white border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium text-neutral-900"
-                  >
-                    {roleOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-neutral-600 mb-1.5">Status</label>
-                  <select
-                    value={editForm.status}
-                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                    className="w-full px-4 py-3 bg-white border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium text-neutral-900"
-                  >
-                    {validStatuses.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Company <span className="font-normal text-neutral-500">(Optional)</span></label>
-                <input
-                  type="text"
-                  value={editForm.company}
-                  onChange={(e) => setEditForm({ ...editForm, company: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium text-neutral-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1.5">User Type</label>
+                <label className="block text-xs font-medium text-neutral-600 mb-1.5">User Status</label>
                 <select
-                  value={editForm.userTypeId}
-                  onChange={(e) => setEditForm({ ...editForm, userTypeId: e.target.value })}
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
                   className="w-full px-4 py-3 bg-white border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium text-neutral-900"
                 >
-                  <option value="">Select User Type</option>
-                  {userTypes.map(type => (
-                    <option key={type.id} value={type.id}>{type.name}</option>
-                  ))}
+                  {validStatuses.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
+                <p className="mt-2 text-[11px] text-gray-500">Updating this will change the user's access level to the platform.</p>
               </div>
             </div>
 
