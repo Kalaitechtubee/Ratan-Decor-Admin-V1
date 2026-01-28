@@ -158,7 +158,6 @@ const UsersList = () => {
     status: '',
     paymentStatus: '',
     page: 1,
-    page: 1,
     limit: 5
   });
 
