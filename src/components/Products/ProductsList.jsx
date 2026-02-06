@@ -99,8 +99,6 @@ const ProductsList = () => {
     subcategoryId: searchParams.get('subcategoryId') || '',
     isActive: searchParams.get('isActive') || '',
     designNumber: searchParams.get('designNumber') || '',
-    minDesignNumber: searchParams.get('minDesignNumber') || '',
-    maxDesignNumber: searchParams.get('maxDesignNumber') || '',
     minPrice: searchParams.get('minPrice') || '',
 
     maxPrice: searchParams.get('maxPrice') || '',
@@ -120,8 +118,6 @@ const ProductsList = () => {
       subcategoryId: searchParams.get('subcategoryId'),
       isActive: searchParams.get('isActive'),
       designNumber: searchParams.get('designNumber'),
-      minDesignNumber: searchParams.get('minDesignNumber'),
-      maxDesignNumber: searchParams.get('maxDesignNumber'),
       minPrice: searchParams.get('minPrice'),
 
       maxPrice: searchParams.get('maxPrice'),
@@ -164,8 +160,6 @@ const ProductsList = () => {
       subcategoryId: filters.subcategoryId,
       isActive: filters.isActive,
       designNumber: filters.designNumber.trim(),
-      minDesignNumber: filters.minDesignNumber.trim(),
-      maxDesignNumber: filters.maxDesignNumber.trim(),
       minPrice: filters.minPrice.trim(),
 
       maxPrice: filters.maxPrice.trim(),
@@ -186,8 +180,6 @@ const ProductsList = () => {
       subcategoryId: filters.subcategoryId || undefined,
       isActive: filters.isActive || undefined,
       designNumber: filters.designNumber.trim() || undefined,
-      minDesignNumber: filters.minDesignNumber.trim() || undefined,
-      maxDesignNumber: filters.maxDesignNumber.trim() || undefined,
       minPrice: filters.minPrice.trim() || undefined,
 
       maxPrice: filters.maxPrice.trim() || undefined,
@@ -229,8 +221,6 @@ const ProductsList = () => {
         subcategoryId: filters.subcategoryId || undefined,
         isActive: filters.isActive !== '' ? filters.isActive : undefined,
         designNumber: filters.designNumber.trim() || undefined,
-        minDesignNumber: filters.minDesignNumber.trim() || undefined,
-        maxDesignNumber: filters.maxDesignNumber.trim() || undefined,
         minPrice: filters.minPrice.trim() || undefined,
         maxPrice: filters.maxPrice.trim() || undefined,
         userType: filters.userType.trim() || undefined,
@@ -558,26 +548,14 @@ const ProductsList = () => {
   };
 
   const handleFilterChange = (key, value) => {
-    // Restrict design number filters to numeric values only
-    if (['designNumber', 'minDesignNumber', 'maxDesignNumber'].includes(key)) {
+    // Restrict price filters to numeric values only
+    if (['minPrice', 'maxPrice'].includes(key)) {
       if (value !== '' && !/^\d+$/.test(value)) {
         return;
       }
     }
 
-    setFilters(prev => {
-      const newFilters = { ...prev, [key]: value };
-
-      // Mutual exclusivity logic for Design Number
-      if (key === 'designNumber' && value !== '') {
-        newFilters.minDesignNumber = '';
-        newFilters.maxDesignNumber = '';
-      } else if (['minDesignNumber', 'maxDesignNumber'].includes(key) && value !== '') {
-        newFilters.designNumber = '';
-      }
-
-      return newFilters;
-    });
+    setFilters(prev => ({ ...prev, [key]: value }));
 
     setPagination(prev => ({ ...prev, currentPage: 1 }));
 
@@ -602,8 +580,6 @@ const ProductsList = () => {
       subcategoryId: '',
       isActive: '',
       designNumber: '',
-      minDesignNumber: '',
-      maxDesignNumber: '',
       minPrice: '',
 
       maxPrice: '',
@@ -622,13 +598,15 @@ const ProductsList = () => {
       key: 'imageUrls',
       header: 'Image',
       sortable: false,
-      render: (value) => {
-        const uniqueUrls = value ? [...new Set(value)] : [];
+      render: (value, item) => {
+        const imageUrls = value || [];
+        const displayImage = (imageUrls.length > 0 ? imageUrls[0] : item.imageUrl);
+        
         return (
           <div className="flex justify-center items-center w-12 h-12 bg-gray-200 rounded-lg">
-            {uniqueUrls?.length > 0 ? (
+            {displayImage ? (
               <img
-                src={getImageUrl(uniqueUrls[0])}
+                src={getImageUrl(displayImage)}
                 alt="Product"
                 className="object-cover w-full h-full rounded-lg"
                 onError={(e) => {
@@ -990,31 +968,11 @@ const ProductsList = () => {
                 </div>
                 <div className="space-y-3">
                   <FilterInput
-                    placeholder="Exact Design #"
+                    placeholder="Search Design Number"
                     value={filters.designNumber}
                     onChange={(e) => handleFilterChange('designNumber', e.target.value)}
                     onClear={() => handleClearFilter('designNumber')}
-                    inputMode="numeric"
-                    pattern="[0-9]*"
                   />
-                  <div className="grid grid-cols-2 gap-2">
-                    <FilterInput
-                      placeholder="Min #"
-                      value={filters.minDesignNumber}
-                      onChange={(e) => handleFilterChange('minDesignNumber', e.target.value)}
-                      onClear={() => handleClearFilter('minDesignNumber')}
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                    />
-                    <FilterInput
-                      placeholder="Max #"
-                      value={filters.maxDesignNumber}
-                      onChange={(e) => handleFilterChange('maxDesignNumber', e.target.value)}
-                      onClear={() => handleClearFilter('maxDesignNumber')}
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                    />
-                  </div>
                 </div>
               </div>
 
@@ -1103,22 +1061,6 @@ const ProductsList = () => {
               <div className="flex items-center px-3 py-1 bg-blue-50 rounded-full border border-blue-200">
                 <span className="text-blue-700 text-xs font-medium">Design #: {filters.designNumber}</span>
                 <button onClick={() => handleClearFilter('designNumber')} className="ml-2 text-blue-400 hover:text-blue-600">
-                  <X size={12} />
-                </button>
-              </div>
-            )}
-            {(filters.minDesignNumber || filters.maxDesignNumber) && (
-              <div className="flex items-center px-3 py-1 bg-blue-50 rounded-full border border-blue-200">
-                <span className="text-blue-700 text-xs font-medium">
-                  Range: {filters.minDesignNumber || 0}-{filters.maxDesignNumber || '∞'}
-                </span>
-                <button
-                  onClick={() => {
-                    handleClearFilter('minDesignNumber');
-                    handleClearFilter('maxDesignNumber');
-                  }}
-                  className="ml-2 text-blue-400 hover:text-blue-600"
-                >
                   <X size={12} />
                 </button>
               </div>

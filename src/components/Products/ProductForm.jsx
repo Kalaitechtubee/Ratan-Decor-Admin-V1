@@ -610,15 +610,8 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
         <label className="block mb-2 text-sm font-medium text-gray-700">Design Number</label>
         <input
           type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
           value={formProduct.designNumber}
-          onChange={(e) => {
-            const value = e.target.value;
-            if (value === '' || /^\d+$/.test(value)) {
-              handleChange('designNumber', value);
-            }
-          }}
+          onChange={(e) => handleChange('designNumber', e.target.value)}
           className="px-3 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
         />
       </div>

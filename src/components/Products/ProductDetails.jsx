@@ -27,8 +27,12 @@ const ProductDetails = ({ product, getImageUrl, formatRating }) => {
     </div>
   );
 
-  // Filter unique image URLs to prevent duplicates
-  const uniqueImageUrls = product.imageUrls ? [...new Set(product.imageUrls)] : [];
+  // Filter unique image URLs and include product.imageUrl as fallback
+  const rawImages = product.imageUrls ? [...product.imageUrls] : [];
+  if (product.imageUrl && !rawImages.includes(product.imageUrl)) {
+    rawImages.unshift(product.imageUrl);
+  }
+  const uniqueImageUrls = [...new Set(rawImages)];
 
   return (
     <div className="space-y-8 font-roboto bg-gray-50 p-6 rounded-2xl">
