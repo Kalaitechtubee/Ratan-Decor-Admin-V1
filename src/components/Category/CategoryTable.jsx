@@ -35,6 +35,14 @@ const CategoryTable = ({
     return sortConfig.direction === 'asc' ? <ArrowUp size={14} className="text-primary" /> : <ArrowDown size={14} className="text-primary" />;
   };
 
+  const calculateTotalProductCount = (item) => {
+    let total = item.productCount || 0;
+    if (type === 'category' && item.subCategories) {
+      total += item.subCategories.reduce((sum, sub) => sum + (sub.productCount || 0), 0);
+    }
+    return total;
+  };
+
   if (loading) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
@@ -137,7 +145,7 @@ const CategoryTable = ({
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center text-sm text-gray-600">
                     <Package size={14} className="mr-1.5 text-gray-400" />
-                    <span className="font-bold text-gray-500">{item.productCount || 0}</span>
+                    <span className="font-bold text-gray-500">{calculateTotalProductCount(item)}</span>
                     <span className="ml-1 text-xs font-bold text-gray-500 uppercase tracking-wider">Products</span>
                   </div>
                 </td>
@@ -194,7 +202,7 @@ const CategoryTable = ({
           <div className="flex items-center">
             <Package size={12} className="mr-1" />
             Total inventory: <span className="ml-1 font-bold text-gray-700">
-              {items.reduce((sum, item) => sum + (item.productCount || 0), 0)}
+              {items.reduce((sum, item) => sum + calculateTotalProductCount(item), 0)}
             </span>
           </div>
         </div>
