@@ -598,11 +598,15 @@ const ProductForm = ({ isEdit, product: initialProduct, categories, initialSubca
           className="px-3 py-2 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent font-roboto"
         >
           <option value="">Select Brand Name</option>
-          <option value="Ratan Decor">Ratan Decor</option>
-          <option value="Elite Designs">Elite Designs</option>
-          <option value="Premium Tiles">Premium Tiles</option>
-          <option value="Classic Marble">Classic Marble</option>
-          <option value="Modern Stone">Modern Stone</option>
+          <option value="Euro Pratik">Euro Pratik</option>
+          <option value="Rehau">Rehau</option>
+          <option value="Silicon">Silicon</option>
+          <option value="Global">Global</option>
+          <option value="Century">Century</option>
+          <option value="Relwood">Relwood</option>
+          <option value="Wigwam">Wigwam</option>
+          <option value="Tulip">Tulip</option>
+          <option value="Decoraids">Decoraids</option>
         </select>
       </div>
 
