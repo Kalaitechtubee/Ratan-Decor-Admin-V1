@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Loader2, Edit, MessageSquare, Mail, Phone, User, Briefcase, MapPin, Package, FileText, Calendar, Clock, X } from 'lucide-react';
+import { Loader2, Edit, MessageSquare, Mail, Phone, User, Briefcase, MapPin, Package, FileText, Calendar, Clock, X, AlertCircle } from 'lucide-react';
 import Modal from '../Common/Modal';
 import StatusBadge from '../Common/StatusBadge';
 import { getEnquiryById, getInternalNotes } from './EnquiryApi';
@@ -273,6 +273,85 @@ const ViewEnquiryModal = ({
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Creation & Assignment Information side by side */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+
+          {/* Added By */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+              <User size={14} />
+              Added By
+            </h4>
+            <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 flex items-center gap-3">
+              {(() => {
+                const STAFF_ROLES = ['Admin', 'SuperAdmin', 'Sales', 'Manager', 'Support'];
+                const addedByUser = enquiry.addedByUser;
+                const isStaff = addedByUser && STAFF_ROLES.includes(addedByUser.role);
+
+                if (isStaff) {
+                  return (
+                    <>
+                      <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
+                        {addedByUser.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">{addedByUser.name}</p>
+                        <p className="text-[11px] font-semibold text-primary">{addedByUser.role}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">
+                          {new Date(enquiry.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                        </p>
+                      </div>
+                    </>
+                  );
+                }
+                // website / customer submission
+                return (
+                  <>
+                    <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                      <span className="text-green-600 text-lg font-bold">🌐</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">Website</p>
+                      <p className="text-[11px] text-gray-500">Customer Self-Submitted</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">
+                        {new Date(enquiry.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                      </p>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Followed By */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-600 flex items-center gap-1.5">
+              <User size={14} />
+              Followed By
+            </h4>
+            <div className="p-3 bg-indigo-50/60 rounded-lg border border-indigo-100">
+              {enquiry.assignedTo ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
+                    {(enquiry.assignedUser?.name || 'S').charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-indigo-800">{enquiry.assignedUser?.name || 'Staff Member'}</p>
+                    <p className="text-[11px] text-indigo-500">{enquiry.assignedUser?.role}</p>
+                    <span className="text-[9px] font-bold bg-indigo-600 text-white px-1.5 py-0.5 rounded-full uppercase mt-0.5 inline-block">Following</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-gray-400 text-sm italic">
+                  <AlertCircle size={14} className="text-yellow-500" />
+                  Not yet followed by any staff
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
 
         {/* Product Information */}

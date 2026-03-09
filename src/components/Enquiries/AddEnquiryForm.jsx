@@ -399,7 +399,7 @@ const AddEnquiryForm = ({
     email: '',
     phoneNo: '',
     companyName: '',
-    userType: '', 
+    userType: '',
     state: '',
     city: '',
     pincode: '',
@@ -409,8 +409,12 @@ const AddEnquiryForm = ({
     role: 'Customer',
     videoCallDate: '',
     videoCallTime: '',
+    assignedTo: '',
   });
   const [userTypes, setUserTypes] = useState([]);
+  const [staffMembers, setStaffMembers] = useState([]);
+  const [loadingStaff, setLoadingStaff] = useState(false);
+  const [userRole, setUserRole] = useState(null);
   const [loadingUserTypes, setLoadingUserTypes] = useState(false);
   const [errorUserTypes, setErrorUserTypes] = useState(null);
 
@@ -421,7 +425,8 @@ const AddEnquiryForm = ({
       try {
         const result = await getUserTypes();
         if (result.success) {
-          setUserTypes(result.userTypes.map((type) => ({ value: type.id, label: type.name })));
+          const typesArr = result.data || result.userTypes || [];
+          setUserTypes(typesArr.map((type) => ({ value: type.id, label: type.name })));
         }
       } catch (err) {
         setErrorUserTypes('Failed to load user types. Please try again.');
@@ -433,6 +438,26 @@ const AddEnquiryForm = ({
 
     if (isOpen) {
       fetchUserTypes();
+      
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (user) {
+        setUserRole(user.role);
+        if (['Admin', 'Manager', 'SuperAdmin'].includes(user.role)) {
+          const fetchStaff = async () => {
+            setLoadingStaff(true);
+            try {
+              const { getAllStaffUsers } = await import('../../services/Api');
+              const response = await getAllStaffUsers({ page: 1, limit: 100 });
+              setStaffMembers(response.staffUsers || response.data || response.users || []);
+            } catch (error) {
+              console.error('Error fetching staff:', error);
+            } finally {
+              setLoadingStaff(false);
+            }
+          };
+          fetchStaff();
+        }
+      }
     }
   }, [isOpen, showToast]);
 
@@ -475,6 +500,7 @@ const AddEnquiryForm = ({
       role: 'Customer',
       videoCallDate: '',
       videoCallTime: '',
+      assignedTo: '',
     });
     setValidationErrors({});
   };
@@ -524,6 +550,7 @@ const AddEnquiryForm = ({
         pincode: formData.pincode || null,
         videoCallDate: formData.videoCallDate || null,
         videoCallTime: formData.videoCallTime || null,
+        assignedTo: formData.assignedTo || null,
       };
 
       const response = await createEnquiry(formattedEnquiry);

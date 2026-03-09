@@ -233,6 +233,8 @@ const EditEnquiryModal = ({
     role: 'Customer',
     status: 'New',
   });
+  const [addedByUser, setAddedByUser] = useState(null);
+  const [enquiryMeta, setEnquiryMeta] = useState(null);
 
   useEffect(() => {
     const fetchEnquiry = async () => {
@@ -256,6 +258,12 @@ const EditEnquiryModal = ({
             notes: enquiry.notes || '',
             role: enquiry.user?.role || enquiry.role || 'Customer',
             status: enquiry.status || 'New',
+          });
+          setAddedByUser(enquiry.addedByUser || null);
+          setEnquiryMeta({
+            updatedAt: enquiry.updatedAt,
+            currentStatus: enquiry.status,
+            assignedUser: enquiry.assignedUser || null,
           });
         } catch (err) {
           console.error('Error fetching enquiry:', err);
@@ -443,6 +451,26 @@ const EditEnquiryModal = ({
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title={`Edit Enquiry - ${enquiryId}`} size="xl">
       <div className="space-y-6 max-h-[70vh] overflow-y-auto">
+        {(() => {
+          const STAFF_ROLES = ['Admin', 'SuperAdmin', 'Sales', 'Manager', 'Support'];
+          const isStaff = addedByUser && STAFF_ROLES.includes(addedByUser.role);
+          const label = isStaff ? addedByUser.name : 'Website';
+          const roleLabel = isStaff ? addedByUser.role : 'Customer Self-Submitted';
+          const bgColor = isStaff ? 'bg-red-50/50 border-red-100' : 'bg-green-50/50 border-green-100';
+          const textColor = isStaff ? 'text-primary' : 'text-green-700';
+
+          return (
+            <div className={`p-3 rounded-lg border flex items-center justify-between mb-4 ${bgColor}`}>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Added By:</span>
+                <span className={`text-sm font-semibold ${textColor}`}>{label}</span>
+                <span className="px-2 py-0.5 text-[10px] font-bold bg-white text-gray-600 rounded-full border border-gray-200 uppercase tracking-tighter">
+                  {roleLabel}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
         <div>
           <h3 className="mb-4 text-lg font-medium text-gray-900">Customer Information</h3>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -511,6 +539,25 @@ const EditEnquiryModal = ({
               ]}
             />
           </div>
+
+          {/* Last Status Update Info */}
+          {enquiryMeta && (
+            <div className="mt-3 p-3 bg-amber-50 border border-amber-100 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"></div>
+                <span className="text-xs text-amber-700 font-medium">
+                  Current Status: <span className="font-bold">{enquiryMeta.currentStatus}</span>
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-[11px] text-amber-600">
+                {enquiryMeta.assignedUser && (
+                  <span>Followed by: <strong>{enquiryMeta.assignedUser.name}</strong> ({enquiryMeta.assignedUser.role})</span>
+                )}
+                <span>Last updated: <strong>{new Date(enquiryMeta.updatedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</strong></span>
+              </div>
+            </div>
+          )}
+
           <div className="mt-4">
             <label className="block mb-2 text-sm font-medium text-gray-700">Notes</label>
             <textarea
