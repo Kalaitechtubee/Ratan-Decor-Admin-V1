@@ -67,10 +67,19 @@ const ProtectedRoute = ({ children, route, isLoading = false }) => {
           </p>
           <div className="flex gap-3 justify-center">
             <button
-              onClick={() => window.history.back()}
+              onClick={async () => {
+                try {
+                  const { logout } = await import('../../services/Api');
+                  await logout();
+                } catch (err) {
+                  console.error(err);
+                } finally {
+                  window.location.href = '/login';
+                }
+              }}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
             >
-              Go Back
+              Sign out / Go Back
             </button>
             <button
               onClick={() => window.location.href = '/dashboard'}

@@ -518,6 +518,42 @@ export const getUserTypes = async () => {
   }
 };
 
+export const assignEnquiry = async (id, userId) => {
+  try {
+    const response = await apiClient.put(`/enquiries/${id}/assign`, { assignedTo: userId });
+    if (!response.data?.success) {
+      throw new Error(response.data?.message || 'Failed to assign enquiry');
+    }
+
+    return {
+      success: true,
+      message: response.data.message || 'Enquiry assigned successfully',
+      data: response.data.data,
+    };
+  } catch (error) {
+    console.error('Assign enquiry failed:', error);
+    throw new Error(error.message || 'Failed to assign enquiry');
+  }
+};
+
+export const claimEnquiry = async (id) => {
+  try {
+    const response = await apiClient.put(`/enquiries/${id}/claim`);
+    if (!response.data?.success) {
+      throw new Error(response.data?.message || 'Failed to claim enquiry');
+    }
+
+    return {
+      success: true,
+      message: response.data.message || 'Enquiry claimed successfully',
+      data: response.data.data,
+    };
+  } catch (error) {
+    console.error('Claim enquiry failed:', error);
+    throw new Error(error.message || 'Failed to claim enquiry');
+  }
+};
+
 export const deleteEnquiry = async (id) => {
   try {
     // Validate enquiry ID
@@ -552,4 +588,6 @@ export default {
   getFollowUpDashboard,
   getUserTypes,
   deleteEnquiry,
+  assignEnquiry,
+  claimEnquiry,
 };

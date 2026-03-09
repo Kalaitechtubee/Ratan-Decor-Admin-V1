@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Filter, Eye, Edit, AlertCircle, CheckCircle, Loader2, X, FileText, Trash2, Search, Calendar, Package, RefreshCw, Clock, Truck } from 'lucide-react';
+import { Plus, Filter, Eye, Edit, AlertCircle, CheckCircle, Loader2, X, FileText, Trash2, Search, Calendar, Package, RefreshCw, Clock, Truck, User } from 'lucide-react';
 import Table from '../Common/Table';
 import StatusBadge from '../Common/StatusBadge';
 import ExportButton from '../Common/ExportButton';
-import { getAllEnquiries, updateEnquiryStatus, deleteEnquiry, getUserTypes } from './EnquiryApi';
+import { getAllEnquiries, updateEnquiryStatus, deleteEnquiry, getUserTypes,
+  assignEnquiry,
+  claimEnquiry,
+} from './EnquiryApi';
+import { getAllStaffUsers } from '../../services/Api';
 import AddEnquiryForm from './AddEnquiryForm';
 import ViewEnquiryModal from './ViewEnquiryModal';
 import EditEnquiryModal from './EditEnquiryModal';
@@ -85,10 +89,15 @@ const EnquiriesList = () => {
 
   useEffect(() => {
     const user = getUser();
-    if (user && user.role) {
+    if (user) {
       setUserRole(user.role);
+      setUserId(user.id);
     }
   }, []);
+
+  const [staffMembers, setStaffMembers] = useState([]);
+  const [assigningId, setAssigningId] = useState(null);
+  const [userId, setUserId] = useState(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -136,13 +145,9 @@ const EnquiriesList = () => {
   }, [searchParams]);
 
   const ROLES = [
-    { label: 'Customer', value: 'customer' },
+    { label: 'Customer', value: 'Customer' },
     { label: 'Architect', value: 'Architect' },
     { label: 'Dealer', value: 'Dealer' },
-    { label: 'Admin', value: 'Admin' },
-    // { label: 'Manager', value: 'Manager' },
-    { label: 'Sales', value: 'Sales' },
-    { label: 'Support', value: 'Support' }
   ];
   const SOURCES = ['WhatsApp', 'Phone', 'VideoCall', 'Website'];
   const STATUSES = ['New', 'InProgress', 'Confirmed', 'Delivered', 'Rejected'];
@@ -285,6 +290,30 @@ const EnquiriesList = () => {
   const handleDeleteClick = (enquiry) => {
     setEnquiryToDelete(enquiry);
     setShowDeleteModal(true);
+  };
+
+  const handleAssign = async (enquiryId, assignedToId) => {
+    try {
+      setAssigningId(enquiryId);
+      
+      let response;
+      // If assigning to self (claiming), use the claim endpoint which uses session user ID
+      if (assignedToId === userId) {
+        response = await claimEnquiry(enquiryId);
+      } else {
+        response = await assignEnquiry(enquiryId, assignedToId);
+      }
+
+      setEnquiries((prev) =>
+        prev.map((enq) => (enq.id === enquiryId ? { ...enq, ...response.data } : enq))
+      );
+      showToast(assignedToId === userId ? 'Enquiry followed successfully!' : 'Enquiry assigned successfully!');
+    } catch (err) {
+      console.error('Error assigning enquiry:', err);
+      showToast(err.message || 'Failed to assign enquiry.', 'error');
+    } finally {
+      setAssigningId(null);
+    }
   };
 
   const confirmDelete = async () => {
@@ -476,6 +505,20 @@ const EnquiriesList = () => {
   }, []);
 
   useEffect(() => {
+    if (['Admin', 'Manager', 'SuperAdmin'].includes(userRole)) {
+      const fetchStaff = async () => {
+        try {
+          const response = await getAllStaffUsers({ page: 1, limit: 100 });
+          setStaffMembers(response.staffUsers || response.data || response.users || []);
+        } catch (error) {
+          console.error('Error fetching staff:', error);
+        }
+      };
+      fetchStaff();
+    }
+  }, [userRole]);
+
+  useEffect(() => {
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
@@ -525,6 +568,8 @@ const EnquiriesList = () => {
                 { key: 'architectPrice', header: 'Architect Price' },
                 { key: 'dealerPrice', header: 'Dealer Price' },
                 { key: 'status', header: 'Status' },
+                { key: 'addedBy', header: 'Added By' },
+                { key: 'addedByRole', header: 'Added By Role' },
                 // { key: 'priority', header: 'Priority' },
                 { key: 'source', header: 'Source' },
                 { key: 'notes', header: 'Notes' },
@@ -584,6 +629,8 @@ const EnquiriesList = () => {
                     architectPrice: e.product?.architectPrice ? `₹${e.product.architectPrice}` : '-',
                     dealerPrice: e.product?.dealerPrice ? `₹${e.product.dealerPrice}` : '-',
                     status: e.status,
+                    addedBy: e.addedByUser?.name || 'Website',
+                    addedByRole: e.addedByUser?.role || 'Customer',
                     priority: e.priority || '-',
                     source: e.source || '-',
                     notes: e.notes || '-',
